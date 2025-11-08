@@ -1,0 +1,66 @@
+{
+  "$schema": "./addresses.schema.json",
+  "version": "1.0.0",
+  "networks": {
+    "moonbeam": {
+      "chainId": 1284,
+      "deployments": {
+        "current": {
+          "version": "v1",
+          "timestamp": "",
+          "SchemaRegistry": "",
+          "EAS": "",
+          "schemas": {
+            "CubidTrust": {
+              "uid": "",
+              "resolver": "",
+              "revocable": true
+            }
+          },
+          "FeeGate": ""
+        },
+        "history": []
+      }
+    },
+    "moonbase-alpha": {
+      "chainId": 1287,
+      "deployments": {
+        "current": {
+          "version": "v1",
+          "timestamp": "",
+          "SchemaRegistry": "",
+          "EAS": "",
+          "schemas": {
+            "CubidTrust": {
+              "uid": "",
+              "resolver": "",
+              "revocable": true
+            }
+          },
+          "FeeGate": ""
+        },
+        "history": []
+      }
+    },
+    "localhost": {
+      "chainId": 31337,
+      "deployments": {
+        "current": {
+          "version": "dev",
+          "timestamp": "",
+          "SchemaRegistry": "",
+          "EAS": "",
+          "schemas": {
+            "CubidTrust": {
+              "uid": "",
+              "resolver": "",
+              "revocable": true
+            }
+          },
+          "FeeGate": ""
+        },
+        "history": []
+      }
+    }
+  }
+}
