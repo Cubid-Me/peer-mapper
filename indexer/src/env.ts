@@ -1,27 +1,34 @@
-import * as dotenv from 'dotenv';
+import { config } from 'dotenv';
+import { z } from 'zod';
 
-dotenv.config();
+config();
 
-const required = [
-  'DATABASE_URL',
-  'REGISTRY_ADDR',
-  'EAS_ADDR',
-  'SCHEMA_UID',
-  'FEEGATE_ADDR',
-];
+const envSchema = z.object({
+  DATABASE_URL: z.string().min(1).default(':memory:'),
+  REGISTRY_ADDR: z.string().min(1).default('0x0'),
+  EAS_ADDR: z.string().min(1).default('0x0'),
+  SCHEMA_UID: z.string().min(1).default('0x0'),
+  FEEGATE_ADDR: z.string().min(1).default('0x0'),
+  MOONBEAM_RPC: z.string().min(1).optional(),
+  RATE_LIMIT_RPS: z.coerce.number().int().positive().optional(),
+  RATE_LIMIT_DAILY: z.coerce.number().int().positive().optional(),
+});
 
-for (const key of required) {
-  if (!process.env[key]) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
+const parsed = envSchema.safeParse(process.env);
+
+if (!parsed.success) {
+  throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
 }
 
+const values = parsed.data;
+
 export const env = {
-  databaseUrl: process.env.DATABASE_URL!,
-  registryAddress: process.env.REGISTRY_ADDR!,
-  easAddress: process.env.EAS_ADDR!,
-  schemaUid: process.env.SCHEMA_UID!,
-  feeGateAddress: process.env.FEEGATE_ADDR!,
-  rateLimitPerSecond: Number(process.env.RATE_LIMIT_RPS ?? 2),
-  rateLimitDaily: Number(process.env.RATE_LIMIT_DAILY ?? 100),
+  databaseUrl: values.DATABASE_URL,
+  registryAddress: values.REGISTRY_ADDR,
+  easAddress: values.EAS_ADDR,
+  schemaUid: values.SCHEMA_UID,
+  feeGateAddress: values.FEEGATE_ADDR,
+  rpcUrl: values.MOONBEAM_RPC,
+  rateLimitPerSecond: values.RATE_LIMIT_RPS ?? 2,
+  rateLimitDaily: values.RATE_LIMIT_DAILY ?? 100,
 };

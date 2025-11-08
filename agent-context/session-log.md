@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v5
+
+- 2025-11-08 — Session 04: scaffolded the Node/Express indexer with SQLite persistence, a viem-based EAS listener, and structured logging; defined `schema.sql` for latest attestation, issuer, and QR tables; added Vitest coverage for DB migrations/upserts and attestation ingestion; updated specs to capture the new backend skeleton.
+
 session: v4
 
 - 2025-11-08 — Session 03: upgraded FeeGate with direct+delegated submission paths, explicit fee validation, hashed Cubid anchors, and helper EIP-712 views; expanded Foundry tests for delegated success, nonce/deadline failures, fee enforcement, and last-UID tracking; refreshed technical/functional specs and recorded session artefacts.
