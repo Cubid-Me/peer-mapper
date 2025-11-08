@@ -7,7 +7,9 @@ import {Counter} from '../src/Counter.sol';
 contract CounterScript is Script {
     Counter public counter;
 
-    function setUp() public {}
+    function setUp() public {
+        /* no-op setup for script */
+    }
 
     function run() public {
         vm.startBroadcast();
