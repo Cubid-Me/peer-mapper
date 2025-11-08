@@ -367,6 +367,8 @@ Introduce **Supabase Auth** (for app sessions) and a lightweight **user profile*
 - Supabase project linked (`supabase link …`) and CLI logged in.
 - Frontend and Indexer already running locally.
 
+Use SUPABASE_ACCESS_TOKEN from .env.local to update supabase.
+
 ---
 
 ## Tasks
