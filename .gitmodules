@@ -1,0 +1,6 @@
+[submodule "contracts/lib/eas"]
+	path = contracts/lib/eas
+	url = https://github.com/ethereum-attestation-service/eas-contracts.git
+[submodule "contracts/lib/openzeppelin"]
+	path = contracts/lib/openzeppelin
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts.git

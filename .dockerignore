@@ -1,0 +1,11 @@
+node_modules
+dist
+.next
+coverage
+.pnpm-store
+contracts/out
+contracts/cache
+contracts/broadcast
+.git
+.husky
+frontend/node_modules

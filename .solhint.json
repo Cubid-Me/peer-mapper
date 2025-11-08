@@ -1,0 +1,12 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "max-line-length": ["error", 120],
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "compiler-version": ["error", "^0.8.24"],
+    "const-name-snakecase": "off",
+    "use-natspec": "off",
+    "gas-increment-by-one": "off",
+    "import-path-check": "off"
+  }
+}

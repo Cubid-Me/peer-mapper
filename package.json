@@ -3,9 +3,36 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "lint": "pnpm lint:ts && pnpm lint:sol",
+    "lint:ts": "eslint . --ext .ts,.tsx --max-warnings 0",
+    "lint:sol": "SOLHINT_DISABLE_UPDATE_CHECK=1 solhint \"contracts/src/**/*.sol\" \"contracts/script/**/*.sol\"",
+    "format": "prettier --write .",
+    "test": "pnpm -r test",
     "env:sync": "node scripts/env-sync.ts",
     "spec:lint": "echo \"spec lint placeholder\"",
     "coverage": "bash scripts/forge-coverage.sh",
     "prepare": "husky install"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": "eslint --fix",
+    "*.{json,md,yml,yaml}": "prettier --write",
+    "contracts/**/*.{sol}": "prettier --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@next/eslint-plugin-next": "16.0.1",
+    "@typescript-eslint/eslint-plugin": "8.46.3",
+    "@typescript-eslint/parser": "8.46.3",
+    "eslint": "9.39.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "globals": "^16.5.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.2.6",
+    "prettier": "3.6.2",
+    "prettier-plugin-solidity": "2.1.0",
+    "solhint": "6.0.1",
+    "typescript": "5.9.3"
   }
 }
