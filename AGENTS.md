@@ -4,6 +4,7 @@ alwaysApply: true
 ---
 
 # AGENTS.md  
+
 ---
 
 ## 0 Philosophy
