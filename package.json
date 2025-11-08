@@ -1,0 +1,11 @@
+{
+  "name": "peer-mapper",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "env:sync": "node scripts/env-sync.ts",
+    "spec:lint": "echo \"spec lint placeholder\"",
+    "coverage": "bash scripts/forge-coverage.sh",
+    "prepare": "husky install"
+  }
+}
