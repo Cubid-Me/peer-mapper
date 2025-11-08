@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# Modern husky compatibility: avoid sourcing internal husky bootstrap script which may be
+# deprecated in newer husky versions. Run lint-staged directly through pnpm to execute
+# staged linters/formatters. This is simpler and works regardless of husky major version.
+pnpm -s lint-staged
 
-pnpm lint-staged
