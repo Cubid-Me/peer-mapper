@@ -2,11 +2,12 @@
 pragma solidity 0.8.28;
 
 import {Test} from 'forge-std/Test.sol';
-import {FeeGate} from '../src/FeeGate.sol';
+import {FeeGate, AttestationPayload} from '../src/FeeGate.sol';
 import {SchemaRegistry} from 'eas-contracts/SchemaRegistry.sol';
-import {EAS, Attestation, AttestationRequest, AttestationRequestData} from 'eas-contracts/EAS.sol';
-import {ISchemaResolver} from 'eas-contracts/resolver/ISchemaResolver.sol';
+import {EAS} from 'eas-contracts/EAS.sol';
+import {Signature} from 'eas-contracts/Common.sol';
 import {IEAS} from 'eas-contracts/IEAS.sol';
+import {ISchemaResolver} from 'eas-contracts/resolver/ISchemaResolver.sol';
 
 contract FeeGateTest is Test {
     FeeGate public feeGate;
@@ -14,312 +15,188 @@ contract FeeGateTest is Test {
     EAS public eas;
     bytes32 public schemaUID;
 
-    address public issuer = address(0x1);
-    address public recipient = address(0x2);
+    uint256 private constant ISSUER_KEY = 0xA11CE;
+    address public issuer = vm.addr(ISSUER_KEY);
+    address public recipient = address(0xBEEF);
 
     string constant SCHEMA =
         'string cubidId,uint8 trustLevel,bool human,bytes32 circle,uint64 issuedAt,uint64 expiry,uint256 nonce';
 
     function setUp() public {
-        // Deploy EAS infrastructure
         registry = new SchemaRegistry();
         eas = new EAS(registry);
 
-        // Deploy FeeGate first (with placeholder schema UID)
-        feeGate = new FeeGate(IEAS(address(eas)), bytes32(0));
-
-        // Register schema WITH FeeGate resolver
-        schemaUID = registry.register(SCHEMA, ISchemaResolver(address(feeGate)), true);
-
-        // Update FeeGate with actual schema UID (redeploy with correct UID)
+        address predictedFeeGate = vm.computeCreateAddress(
+            address(this),
+            vm.getNonce(address(this))
+        );
+        schemaUID = registry.register(SCHEMA, ISchemaResolver(predictedFeeGate), true);
         feeGate = new FeeGate(IEAS(address(eas)), schemaUID);
 
-        // Re-register schema with the correct FeeGate instance
-        schemaUID = registry.register(
-            string(abi.encodePacked(SCHEMA, '_v2')), // Unique schema to avoid duplicate
-            ISchemaResolver(address(feeGate)),
-            true
-        );
-
-        // Give issuer some ETH for fees
-        vm.deal(issuer, 1000 ether);
+        vm.deal(issuer, 1_000 ether);
     }
 
-    function testFirstAttestationNoFee() public {
+    function testAttestDirectNoFee() public {
         vm.startPrank(issuer);
-
-        bytes memory attestationData = abi.encode(
-            'cubid123', // cubidId
-            uint8(5), // trustLevel
-            true, // human
-            bytes32(uint256(1)), // circle
-            uint64(block.timestamp), // issuedAt
-            uint64(0), // expiry (0 = no expiry)
-            uint256(0) // nonce
-        );
-
-        AttestationRequest memory request = AttestationRequest({
-            schema: schemaUID,
-            data: AttestationRequestData({
-                recipient: recipient,
-                expirationTime: 0,
-                revocable: true,
-                refUID: bytes32(0),
-                data: attestationData,
-                value: 0
-            })
-        });
-
-        // First attestation should not require fee
-        bytes32 uid = eas.attest(request);
-
-        assertEq(feeGate.attestCount(issuer), 1); // Count incremented by resolver
-        assertEq(feeGate.issuerNonce(issuer), 1); // Nonce incremented to 1
-        assertFalse(feeGate.hasPaidFee(issuer)); // No fee required for first attestation
-
+        AttestationPayload memory payload = _payload('cubid123', 5);
+        bytes32 uid = feeGate.attestDirect(payload);
         vm.stopPrank();
-    }
 
-    function testNonceValidation() public {
-        vm.startPrank(issuer);
-
-        // First attestation with nonce 0
-        bytes memory attestationData = abi.encode(
-            'cubid123',
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(0) // correct nonce
-        );
-
-        AttestationRequest memory request = AttestationRequest({
-            schema: schemaUID,
-            data: AttestationRequestData({
-                recipient: recipient,
-                expirationTime: 0,
-                revocable: true,
-                refUID: bytes32(0),
-                data: attestationData,
-                value: 0
-            })
-        });
-
-        bytes32 uid = eas.attest(request);
+        assertEq(feeGate.attestCount(issuer), 1);
         assertEq(feeGate.issuerNonce(issuer), 1);
-
-        // Try to reuse nonce 0 - should fail
-        vm.expectRevert(FeeGate.InvalidNonce.selector);
-        eas.attest(request);
-
-        // Use correct nonce 1
-        attestationData = abi.encode(
-            'cubid456',
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(1) // correct next nonce
-        );
-
-        request.data.data = attestationData;
-        uid = eas.attest(request);
-        assertEq(feeGate.issuerNonce(issuer), 2);
-
-        vm.stopPrank();
+        assertFalse(feeGate.hasPaidFee(issuer));
+        assertEq(feeGate.getLastUID(issuer, 'cubid123'), uid);
+        assertEq(address(feeGate).balance, 0);
     }
 
-    function testFeeOnThirdAttestation() public {
+    function testDelegatedAttestationSuccess() public {
+        AttestationPayload memory payload = _payload('cubid456', 4);
+        uint256 nonce = feeGate.issuerNonce(issuer);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, nonce, deadline);
+
+        bytes32 uid = feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
+
+        assertEq(feeGate.attestCount(issuer), 1);
+        assertEq(feeGate.issuerNonce(issuer), 1);
+        assertEq(feeGate.getLastUID(issuer, 'cubid456'), uid);
+    }
+
+    function testDelegatedInvalidNonceReverts() public {
+        AttestationPayload memory payload = _payload('cubid789', 3);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, 1, deadline);
+
+        vm.expectRevert(FeeGate.InvalidNonce.selector);
+        feeGate.attestDelegated(payload, issuer, 1, deadline, signature);
+    }
+
+    function testDelegatedDeadlineExpiredReverts() public {
+        AttestationPayload memory payload = _payload('cubid987', 3);
+        uint256 nonce = feeGate.issuerNonce(issuer);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, nonce, deadline);
+
+        vm.warp(block.timestamp + 2 hours);
+        vm.expectRevert(FeeGate.DeadlineExpired.selector);
+        feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
+    }
+
+    function testFeeChargedOnThirdAttestation() public {
+        // first attestation (direct)
         vm.startPrank(issuer);
+        feeGate.attestDirect(_payload('cubidA', 5));
+        vm.stopPrank();
 
-        // First two attestations - no fee required
-        for (uint256 i = 0; i < 2; i++) {
-            bytes memory loopAttestationData = abi.encode(
-                string(abi.encodePacked('cubid', vm.toString(i))),
-                uint8(5),
-                true,
-                bytes32(uint256(1)),
-                uint64(block.timestamp),
-                uint64(0),
-                i // nonce
-            );
-
-            AttestationRequest memory loopRequest = AttestationRequest({
-                schema: schemaUID,
-                data: AttestationRequestData({
-                    recipient: recipient,
-                    expirationTime: 0,
-                    revocable: true,
-                    refUID: bytes32(0),
-                    data: loopAttestationData,
-                    value: 0
-                })
-            });
-
-            eas.attest(loopRequest);
-        }
+        // second attestation (delegated)
+        AttestationPayload memory payload = _payload('cubidB', 4);
+        uint256 nonce = feeGate.issuerNonce(issuer);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, nonce, deadline);
+        feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
 
         assertEq(feeGate.attestCount(issuer), 2);
         assertFalse(feeGate.hasPaidFee(issuer));
+        assertEq(address(feeGate).balance, 0);
 
-        // Third attestation - should require 100 GLMR fee
-        bytes memory attestationData = abi.encode(
-            'cubid3',
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(2) // nonce
-        );
+        // third attestation must pay fee
+        vm.startPrank(issuer);
+        vm.expectRevert(FeeGate.InsufficientFee.selector);
+        feeGate.attestDirect(_payload('cubidC', 6));
+        vm.stopPrank();
 
-        AttestationRequest memory request = AttestationRequest({
-            schema: schemaUID,
-            data: AttestationRequestData({
-                recipient: recipient,
-                expirationTime: 0,
-                revocable: true,
-                refUID: bytes32(0),
-                data: attestationData,
-                value: feeGate.LIFETIME_FEE()
-            })
-        });
-
-        // Should succeed with fee
-        eas.attest{value: feeGate.LIFETIME_FEE()}(request);
+        vm.startPrank(issuer);
+        bytes32 uid = feeGate.attestDirect{value: feeGate.LIFETIME_FEE()}(_payload('cubidC', 6));
+        vm.stopPrank();
 
         assertEq(feeGate.attestCount(issuer), 3);
         assertTrue(feeGate.hasPaidFee(issuer));
+        assertEq(feeGate.getLastUID(issuer, 'cubidC'), uid);
+        assertEq(address(feeGate).balance, feeGate.LIFETIME_FEE());
 
-        // Fourth attestation should not require fee
-        attestationData = abi.encode(
-            'cubid4',
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(3) // nonce
+        // fourth attestation requires no additional fee
+        AttestationPayload memory payloadFourth = _payload('cubidD', 7);
+        uint256 nonceFourth = feeGate.issuerNonce(issuer);
+        uint64 deadlineFourth = uint64(block.timestamp + 1 hours);
+        Signature memory signatureFourth = _signPayload(payloadFourth, nonceFourth, deadlineFourth);
+        feeGate.attestDelegated(
+            payloadFourth,
+            issuer,
+            nonceFourth,
+            deadlineFourth,
+            signatureFourth
         );
-        request.data.data = attestationData;
-        request.data.value = 0;
 
-        eas.attest(request);
         assertEq(feeGate.attestCount(issuer), 4);
-
-        vm.stopPrank();
+        assertTrue(feeGate.hasPaidFee(issuer));
+        assertEq(address(feeGate).balance, feeGate.LIFETIME_FEE());
     }
 
-    function testInsufficientFee() public {
+    function testInsufficientFeeDelegatedReverts() public {
+        // two free attestations
         vm.startPrank(issuer);
+        feeGate.attestDirect(_payload('cubidFree1', 5));
+        feeGate.attestDirect(_payload('cubidFree2', 5));
+        vm.stopPrank();
 
-        // Make first two attestations
-        for (uint256 i = 0; i < 2; i++) {
-            bytes memory loopAttestationData = abi.encode(
-                string(abi.encodePacked('cubid', vm.toString(i))),
-                uint8(5),
-                true,
-                bytes32(uint256(1)),
-                uint64(block.timestamp),
-                uint64(0),
-                i
-            );
-
-            AttestationRequest memory loopRequest = AttestationRequest({
-                schema: schemaUID,
-                data: AttestationRequestData({
-                    recipient: recipient,
-                    expirationTime: 0,
-                    revocable: true,
-                    refUID: bytes32(0),
-                    data: loopAttestationData,
-                    value: 0
-                })
-            });
-
-            eas.attest(loopRequest);
-        }
-
-        // Try third attestation with insufficient fee
-        bytes memory attestationData = abi.encode(
-            'cubid3',
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(2)
-        );
-
-        AttestationRequest memory request = AttestationRequest({
-            schema: schemaUID,
-            data: AttestationRequestData({
-                recipient: recipient,
-                expirationTime: 0,
-                revocable: true,
-                refUID: bytes32(0),
-                data: attestationData,
-                value: 50 ether // Less than LIFETIME_FEE
-            })
-        });
+        AttestationPayload memory payload = _payload('cubidFee', 5);
+        uint256 nonce = feeGate.issuerNonce(issuer);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, nonce, deadline);
 
         vm.expectRevert(FeeGate.InsufficientFee.selector);
-        eas.attest{value: 50 ether}(request);
-
-        vm.stopPrank();
+        feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
     }
 
-    function testLastUIDAnchor() public {
+    function testLastUIDAnchorUpdates() public {
         vm.startPrank(issuer);
-
-        string memory cubidId = 'cubid123';
-
-        bytes memory attestationData = abi.encode(
-            cubidId,
-            uint8(5),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(0)
-        );
-
-        AttestationRequest memory request = AttestationRequest({
-            schema: schemaUID,
-            data: AttestationRequestData({
-                recipient: recipient,
-                expirationTime: 0,
-                revocable: true,
-                refUID: bytes32(0),
-                data: attestationData,
-                value: 0
-            })
-        });
-
-        bytes32 uid1 = eas.attest(request);
-
-        // Check lastUID was set
-        assertEq(feeGate.getLastUID(issuer, cubidId), uid1);
-
-        // Make another attestation for same cubidId
-        attestationData = abi.encode(
-            cubidId,
-            uint8(7),
-            true,
-            bytes32(uint256(1)),
-            uint64(block.timestamp),
-            uint64(0),
-            uint256(1)
-        );
-        request.data.data = attestationData;
-
-        bytes32 uid2 = eas.attest(request);
-
-        // LastUID should be updated to latest
-        assertEq(feeGate.getLastUID(issuer, cubidId), uid2);
-
+        feeGate.attestDirect(_payload('cubidX', 5));
         vm.stopPrank();
+
+        AttestationPayload memory payload = _payload('cubidX', 6);
+        uint256 nonce = feeGate.issuerNonce(issuer);
+        uint64 deadline = uint64(block.timestamp + 1 hours);
+        Signature memory signature = _signPayload(payload, nonce, deadline);
+        bytes32 latestUID = feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
+
+        assertEq(feeGate.getLastUID(issuer, 'cubidX'), latestUID);
+    }
+
+    function _payload(
+        string memory cubidId,
+        uint8 trustLevel
+    ) internal view returns (AttestationPayload memory payload) {
+        payload = AttestationPayload({
+            recipient: recipient,
+            refUID: bytes32(0),
+            revocable: true,
+            expirationTime: 0,
+            cubidId: cubidId,
+            trustLevel: trustLevel,
+            human: true,
+            circle: bytes32(uint256(1)),
+            issuedAt: uint64(block.timestamp),
+            expiry: uint64(0)
+        });
+    }
+
+    function _signPayload(
+        AttestationPayload memory payload,
+        uint256 nonce,
+        uint64 deadline
+    ) internal view returns (Signature memory signature) {
+        bytes32 digest = feeGate.hashAttestation(
+            issuer,
+            payload.cubidId,
+            payload.trustLevel,
+            payload.human,
+            payload.circle,
+            payload.issuedAt,
+            payload.expiry,
+            nonce,
+            deadline
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ISSUER_KEY, digest);
+        signature = Signature({v: v, r: r, s: s});
     }
 }

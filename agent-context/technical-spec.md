@@ -71,16 +71,18 @@ Deploy a tiny **FeeGate** contract that:
 - Enforces the **one-time lifetime fee** (100 GLMR) **on the 3rd attestation per issuer**.
 - Enforces a **per-issuer nonce** for **delegated** attestations (meta-tx pattern).
 - Optionally stores a **compact “last UID” anchor** for deterministic “latest wins” reads.
+- Provides two submission paths: `attestDirect` (issuer wallet) and `attestDelegated` (relayed with EIP-712 signature validation).
 
 **State**
 
 ```solidity
-mapping(address => uint256) public attestCount;     // # attestations submitted by issuer
+mapping(address => uint256) public attestCount;      // # attestations submitted by issuer
 mapping(address => bool)    public lifetimeFeePaid;
-mapping(address => uint256) public issuerNonce;     // expected next nonce for delegated sigs
-uint256 public constant LIFETIME_FEE = 100 ether;   // 100 GLMR
-address public immutable EAS;                       // EAS core
-bytes32 public immutable SCHEMA_UID;                // CubidTrust schema UID
+mapping(address => uint256) public issuerNonce;      // expected next nonce for delegated sigs
+mapping(address => mapping(bytes32 => bytes32)) private _lastUID; // keyed by keccak256(cubidId)
+uint256 public constant LIFETIME_FEE = 100 ether;    // 100 GLMR
+address public immutable EAS;                        // EAS core
+bytes32 public immutable SCHEMA_UID;                 // CubidTrust schema UID
 ```
 
 **Flow (delegated attestation)**
@@ -91,6 +93,8 @@ bytes32 public immutable SCHEMA_UID;                // CubidTrust schema UID
 
 - FeeGate increments `issuerNonce[issuer]`, `attestCount[issuer]++`, and calls **`EAS.attest`** with the schema + encoded payload.
 - Optionally, FeeGate caches `lastUID[issuer][cubidId] = uid` to anchor “latest wins”.
+
+FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so the frontend can generate the delegated payload digest without reimplementing Solidity hashing.
 
 **Direct (non-delegated) variant**
 

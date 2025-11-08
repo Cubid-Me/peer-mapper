@@ -1,4 +1,4 @@
-This **functional specification** complements it by describing *what the system does*, *how users interact with it*, and *what behaviors are observable*, without diving into code or architecture. It’s a lean, hackathon-sized **Functional Specification** that aligns directly with the technical spec.
+This **functional specification** complements it by describing _what the system does_, _how users interact with it_, and _what behaviors are observable_, without diving into code or architecture. It’s a lean, hackathon-sized **Functional Specification** that aligns directly with the technical spec.
 
 ---
 
@@ -7,7 +7,7 @@ This **functional specification** complements it by describing *what the system 
 ## 1. Purpose and Scope
 
 The app enables people to **verify each other’s authenticity and trustworthiness** by creating and viewing attestations anchored on-chain.
-Each attestation is a public proof that *“Person A knows/trusts Person B”*, issued via the Cubid identity layer and recorded using the Ethereum Attestation Service (EAS) on **Moonbeam**.
+Each attestation is a public proof that _“Person A knows/trusts Person B”_, issued via the Cubid identity layer and recorded using the Ethereum Attestation Service (EAS) on **Moonbeam**.
 
 The MVP focuses on human-to-human verification and displaying mutual trusted connections, allowing users to quickly establish whether someone they’re interacting with online is real and vouched for by people they already trust.
 
@@ -17,58 +17,58 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ### 2.1 Authentication & Identity
 
-* As a **user**, I can sign in using my **email or phone** through Cubid, receiving an **app-scoped Cubid ID**.
-* As a **user**, I can optionally connect an **EVM wallet (Nova Wallet)** to fund or sign attestations.
+- As a **user**, I can sign in using my **email or phone** through Cubid, receiving an **app-scoped Cubid ID**.
+- As a **user**, I can optionally connect an **EVM wallet (Nova Wallet)** to fund or sign attestations.
 
 ### 2.2 Creating Attestations (Vouching)
 
-* As a **user**, I can **vouch for another person** by entering their Cubid ID (or scanning their QR).
-* I choose a **trust level** from a predefined list:
+- As a **user**, I can **vouch for another person** by entering their Cubid ID (or scanning their QR).
+- I choose a **trust level** from a predefined list:
+  - suspicious, no opinion, met online, met in person, known long-term, fully trusted.
 
-  * suspicious, no opinion, met online, met in person, known long-term, fully trusted.
-* I optionally mark:
+- I optionally mark:
+  - **human flag** (true/false)
+  - **circle tag** (friends, family, coworker, etc.)
+  - **expiry date** (or none = evergreen)
 
-  * **human flag** (true/false)
-  * **circle tag** (friends, family, coworker, etc.)
-  * **expiry date** (or none = evergreen)
-* On submit:
+- On submit:
+  - My wallet signs an **EIP-712 message** authorizing the attestation.
+  - Power users may submit directly via `FeeGate.attestDirect`, which auto-fills the expected nonce and enforces the same fee rules.
+  - The backend relays it via **FeeGate** (which checks per-issuer nonce and charges a one-time fee on the 3rd attestation).
+  - FeeGate exposes `domainSeparator()`/`hashAttestation(...)` helpers so the client can assemble the digest without duplicating Solidity logic.
+  - A corresponding **EAS attestation** event is emitted on-chain.
 
-  * My wallet signs an **EIP-712 message** authorizing the attestation.
-  * The backend relays it via **FeeGate** (which checks per-issuer nonce and charges a one-time fee on the 3rd attestation).
-  * A corresponding **EAS attestation** event is emitted on-chain.
-* I can issue two free attestations; my third triggers a **100 GLMR lifetime fee**.
+- I can issue two free attestations; my third triggers a **100 GLMR lifetime fee**.
 
 ### 2.3 Viewing Attestations (My Circle)
 
-* As a **user**, I can view everyone I’ve vouched for and everyone who has vouched for me.
-* Each entry displays:
-
-  * Trust level
-  * Circle tag
-  * Issued date / expiry
-  * Whether fee was paid
+- As a **user**, I can view everyone I’ve vouched for and everyone who has vouched for me.
+- Each entry displays:
+  - Trust level
+  - Circle tag
+  - Issued date / expiry
+  - Whether fee was paid
 
 ### 2.4 QR Handshake Verification
 
-* As a **user**, I can tap **“Verify Someone”** to generate a time-limited QR code containing my Cubid ID.
-* Another user scans it with their app; both sides:
+- As a **user**, I can tap **“Verify Someone”** to generate a time-limited QR code containing my Cubid ID.
+- Another user scans it with their app; both sides:
+  - Exchange temporary challenges (PSI-lite)
+  - Reveal only **mutual trusted contacts**
+  - See how trusted each overlap is and how recent the attestation is
 
-  * Exchange temporary challenges (PSI-lite)
-  * Reveal only **mutual trusted contacts**
-  * See how trusted each overlap is and how recent the attestation is
-* The handshake expires if unused after 90 seconds.
+- The handshake expires if unused after 90 seconds.
 
 ### 2.5 Trust Overlap Display
 
-* When two users compare, the app shows:
-
-  * List of mutual trusted connections (only if both sides allow it)
-  * Each overlap shows: issuer’s name (short address), circle tag, freshness, and trust level.
+- When two users compare, the app shows:
+  - List of mutual trusted connections (only if both sides allow it)
+  - Each overlap shows: issuer’s name (short address), circle tag, freshness, and trust level.
 
 ### 2.6 Revocation
 
-* As a **user**, I can update or revoke a prior attestation; the most recent event overrides older ones.
-* Revocations are emitted as events and reflected in My Circle and overlaps.
+- As a **user**, I can update or revoke a prior attestation; the most recent event overrides older ones.
+- Revocations are emitted as events and reflected in My Circle and overlaps.
 
 ---
 
@@ -77,30 +77,29 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 ### 3.1 Screens
 
 1. **Sign-In**
+   - Cubid authentication (email → OTP)
+   - Connect wallet (Nova)
+   - Shows current Cubid ID and address
 
-   * Cubid authentication (email → OTP)
-   * Connect wallet (Nova)
-   * Shows current Cubid ID and address
 2. **My Circle**
+   - Tabs: _I Trust_ / _Trusts Me_
+   - List of attestations (avatar, circle, level)
+   - “Vouch for New Contact” button
 
-   * Tabs: *I Trust* / *Trusts Me*
-   * List of attestations (avatar, circle, level)
-   * “Vouch for New Contact” button
 3. **Vouch**
+   - Form fields: target Cubid ID, trust level, circle, expiry toggle
+   - Submit button → triggers signing flow
+   - Displays fee notice on 3rd attestation
 
-   * Form fields: target Cubid ID, trust level, circle, expiry toggle
-   * Submit button → triggers signing flow
-   * Displays fee notice on 3rd attestation
 4. **Scan / Verify**
+   - Show QR of own Cubid ID
+   - Scan peer QR → initiate handshake
+   - Show verifying state / spinner
 
-   * Show QR of own Cubid ID
-   * Scan peer QR → initiate handshake
-   * Show verifying state / spinner
 5. **Results**
-
-   * List of mutual trusted contacts
-   * Visual indicator of freshness (new / old)
-   * Option to vouch for peer directly from this page
+   - List of mutual trusted contacts
+   - Visual indicator of freshness (new / old)
+   - Option to vouch for peer directly from this page
 
 ---
 
@@ -161,32 +160,32 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ## 8. Non-Functional Requirements
 
-* **Performance:** API responses under 500 ms except during chain lag.
-* **Scalability:** Indexer supports 10 000 attestations in SQLite without degradation.
-* **Reliability:** System recovers on restart and replays chain events.
-* **Privacy:** No raw emails/phones stored—only Cubid IDs and hashes.
-* **Availability:** ≥ 99% during demo window.
-* **Usability:** Each flow completable in ≤ 4 taps.
+- **Performance:** API responses under 500 ms except during chain lag.
+- **Scalability:** Indexer supports 10 000 attestations in SQLite without degradation.
+- **Reliability:** System recovers on restart and replays chain events.
+- **Privacy:** No raw emails/phones stored—only Cubid IDs and hashes.
+- **Availability:** ≥ 99% during demo window.
+- **Usability:** Each flow completable in ≤ 4 taps.
 
 ---
 
 ## 9. Constraints and Future Enhancements
 
-* **Hackathon constraint:** No liveness or zero-knowledge proofs.
-* **Future upgrade:** Replace PSI with ZK-set intersection; integrate direct Cubid scores.
-* **Future chain option:** Mirror attestations to Polkadot Asset Hub once PolkaVM matures.
+- **Hackathon constraint:** No liveness or zero-knowledge proofs.
+- **Future upgrade:** Replace PSI with ZK-set intersection; integrate direct Cubid scores.
+- **Future chain option:** Mirror attestations to Polkadot Asset Hub once PolkaVM matures.
 
 ---
 
 ## 10. Deliverables Summary
 
-* Working web app on Vercel (Next.js)
-* Smart contracts (EAS fork + FeeGate) deployed on Moonbeam
-* Indexer API running publicly
-* Cubid authentication fully functional
-* Demonstrable handshake flow showing shared trusted contacts
-* MIT-licensed codebase with README and deployment docs
+- Working web app on Vercel (Next.js)
+- Smart contracts (EAS fork + FeeGate) deployed on Moonbeam
+- Indexer API running publicly
+- Cubid authentication fully functional
+- Demonstrable handshake flow showing shared trusted contacts
+- MIT-licensed codebase with README and deployment docs
 
 ---
 
-This **Functional Specification** expresses *what the system does* from the user’s perspective — clean, behavioral, and outcome-driven — and should be kept fully consistent with your *Technical Specification* that defines *how* it’s done.
+This **Functional Specification** expresses _what the system does_ from the user’s perspective — clean, behavioral, and outcome-driven — and should be kept fully consistent with your _Technical Specification_ that defines _how_ it’s done.
