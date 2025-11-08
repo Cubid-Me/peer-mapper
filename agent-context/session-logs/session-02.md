@@ -51,6 +51,22 @@
 - Fixed test shadowing warnings by renaming loop variables to `loopAttestationData` and `loopRequest`
 - Removed unused `override` keyword from `supportsInterface()` function
 
+### Address Management System (Post-Session Enhancement)
+
+- **Created `addresses.json`** with versioned deployment tracking:
+  - Network-based structure (moonbeam, moonbase-alpha, localhost)
+  - Current deployment tracking with timestamps
+  - Historical deployment preservation in `history` array
+  - Version correlation (v1, v2, etc.)
+  - Schema metadata (UID, resolver, revocable flag)
+- **Created `addresses.schema.json`** for JSON schema validation
+- **Updated all deploy scripts** to auto-update `addresses.json`:
+  - `DeployEAS.s.sol`: Writes SchemaRegistry + EAS addresses, detects network via chainId
+  - `RegisterSchema.s.sol`: Reads SchemaRegistry from JSON, writes schema UID back
+  - `DeployFeeGate.s.sol`: Reads EAS + schema UID, writes FeeGate address
+- **Simplified `.env.example`**: Removed all address placeholders, kept only private keys and RPC URLs
+- **Created `docs/ADDRESS_MANAGEMENT.md`**: Comprehensive guide for address management workflow
+
 ## Commands & Outputs
 
 ```bash
@@ -95,7 +111,12 @@ Suite: FeeGateTest (5 tests)
 
 - **Configuration:**
   - contracts/foundry.toml (fixed remappings and EVM version)
-  - .env.example (updated with Session 2 variables)
+  - .env.example (simplified to private keys and RPC URLs only)
+  - addresses.json (NEW - versioned deployment address tracking)
+  - addresses.schema.json (NEW - JSON schema for validation)
+
+- **Documentation:**
+  - docs/ADDRESS_MANAGEMENT.md (NEW - address management guide)
 
 ## Test Summary
 
