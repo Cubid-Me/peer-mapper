@@ -19,35 +19,35 @@ alwaysApply: true
 
 ---
 
-## 1 Repository Structure
-Source files are organized under the `app/` directory while context files for agents are organized under agent-context/ with the following layout:
+## 1 Repository structure
+This repository follows a monorepo layout. The canonical, target structure for this project (what agents should aim to establish) is documented in `agent-context/agent-instructions.md` and in the per-session instructions. At a high level, the expected top-level folders are:
+
+- `contracts/`   — Solidity sources and Foundry project (contracts, scripts, tests)
+- `indexer/`     — Node/TypeScript indexer service (listeners, API, DB schema)
+- `frontend/`    — Next.js application and UI components
+- `agent-context/` — design artifacts, session logs and operational docs for agents
+- `.github/`     — CI workflows and PR templates
+- `scripts/`     — helper scripts (env-sync, coverage, etc.)
+
+The repository may start as a small seed (only a subset of these folders present). The `agent-context/agent-instructions.md` file contains a full target directory map and a 10-session plan that agents should follow to reach the target layout. Agents must not contradict that plan when making incremental changes — instead, use `agent-instructions.md` as the authoritative target and update `AGENTS.md` if the project-level conventions change.
+
+Minimal files and directories agents should expect or create early in a bootstrap session:
+
 ```
-.github/workflows/       # Mandatory - PR template + CI workflows for build, lint, supabase, secret scanning
+.github/workflows/       # CI workflows (lint, tests, coverage)
 agent-context/           # designs, logs and other context files for developers and agents
-├─ session-log.md        # Mandatory – append-only per session, new entries at top of file, v ↑ per edit
-├─ technical-spec.md     # Mandatory – latest technical spec
-├─ functional-spec.md    # Mandatory – latest functional spec
-├─ user-stories.md       # Optional – personas & acceptance criteria
-├─ app-context.md        # Optional – problem, approach, value prop
-├─ sql-diff-v{N}.sql     # Optional – Auto-generated incremental SQL patches - append-only per session (new entries at top of file)
-└─ workflow.md           # Repetitive per-session checklist
-contracts/               # solidity contracts, foundry
-indexer/                 # blockchain indexer
-frontend/                # app router
-components/              # shared components
-hooks/                   # custom React hooks
-lib/
-public/                  # static assets to be served
-scripts/                 # helper scripts for env:sync, lint, etc
-styles/                  # global styles
-supabase/                # latest sql schema (github action runs db pull on PR)
-test/
+  ├─ session-log.md      # Mandatory – append-only per session, new entries at top of file
+  ├─ technical-spec.md   # Mandatory – latest technical spec
+  ├─ workflow.md         # Mandatory – per-session checklist
+contracts/               # solidity contracts, foundry (when present)
+indexer/                 # blockchain indexer (when present)
+frontend/                # web app (when present)
+scripts/                 # helper scripts (env-sync, spec-lint, coverage)
 README.md                # intro to the project and this repo
 AGENTS.md                # this file
-agent-setup.md           # One-time boot-strap guide for agents
 ```
 
-*Note: If expected files are missing from .github/workflows or from agent-context/ then follow [these instructions](https://raw.githubusercontent.com/KazanderDad/agent-context-seed-files/refs/heads/main/agent-setup.md) to create them.*
+*Note: If any mandatory files under `.github/workflows/` or `agent-context/` are missing, agents should follow the bootstrap steps in `agent-context/agent-setup.md` (or the canonical upstream referenced there) to create them.*
 
 ---
 
