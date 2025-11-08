@@ -8,6 +8,7 @@
     "lint:sol": "SOLHINT_DISABLE_UPDATE_CHECK=1 solhint \"contracts/src/**/*.sol\" \"contracts/script/**/*.sol\"",
     "format": "prettier --write .",
     "test": "cd contracts && forge test -vv",
+    "test:all": "pnpm --filter frontend --if-present run test && pnpm --filter indexer --if-present run test && pnpm test",
     "env:sync": "node scripts/env-sync.ts",
     "spec:lint": "echo \"spec lint placeholder\"",
     "coverage": "bash scripts/forge-coverage.sh",
@@ -17,7 +18,7 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": "eslint --fix",
     "*.{json,md,yml,yaml}": "prettier --write",
-    "contracts/**/*.{sol}": "prettier --write"
+    "contracts/**/*.sol": "prettier --write"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
