@@ -6,6 +6,7 @@ import pino from 'pino';
 
 import { getDatabase } from './db';
 import { startListener } from './listener';
+import { createRateLimitMiddleware, RateLimitConfig } from './mw/rateLimit';
 import attestRoutes from './routes/attest';
 import profileRoutes from './routes/profile';
 import psiRoutes from './routes/psi';
@@ -15,6 +16,7 @@ const defaultLogger = pino({ name: 'indexer-api' });
 
 export interface BuildAppOptions {
   logger?: pino.Logger;
+  rateLimit?: RateLimitConfig;
 }
 
 export function buildApp(options: BuildAppOptions = {}) {
@@ -23,6 +25,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   app.use(express.json());
   app.use(helmet());
   app.use(cors({ origin: true, credentials: true }));
+  app.use(createRateLimitMiddleware(options.rateLimit));
 
   app.use('/attest', attestRoutes);
   app.use('/profile', profileRoutes);

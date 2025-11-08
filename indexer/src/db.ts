@@ -24,6 +24,34 @@ export interface IssuerRecord {
   expectedNonce: number;
 }
 
+export interface QrChallengeRecord {
+  id: string;
+  issuedFor: string;
+  challenge: string;
+  expiresAt: number;
+  used: boolean;
+}
+
+type AttestationRow = {
+  issuer: string;
+  cubidId: string;
+  trustLevel: number;
+  human: number;
+  circle: Buffer | null;
+  issuedAt: number;
+  expiry: number;
+  uid: string;
+  blockTime: number;
+};
+
+type QrChallengeRow = {
+  id: string;
+  issuedFor: string;
+  challenge: string;
+  expiresAt: number;
+  used: number;
+};
+
 export class IndexerDatabase {
   private readonly db: Database.Database;
 
@@ -121,15 +149,22 @@ export class IndexerDatabase {
          FROM attestations_latest
          WHERE issuer = ? AND cubid_id = ?`,
       )
-      .get(issuer, cubidId) as (AttestationRecord & { human: number }) | undefined;
+      .get(issuer, cubidId) as AttestationRow | undefined;
 
     if (!row) {
       return undefined;
     }
 
     return {
-      ...row,
+      issuer: row.issuer,
+      cubidId: row.cubidId,
+      trustLevel: row.trustLevel,
       human: Boolean(row.human),
+      circle: row.circle ?? null,
+      issuedAt: row.issuedAt,
+      expiry: row.expiry,
+      uid: row.uid,
+      blockTime: row.blockTime,
     };
   }
 
@@ -152,6 +187,68 @@ export class IndexerDatabase {
            expected_nonce = excluded.expected_nonce`,
       )
       .run(record.issuer, record.attestCount, record.feePaid ? 1 : 0, record.expectedNonce);
+  }
+
+  listAttestationsForCubid(cubidId: string): AttestationRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT issuer, cubid_id as cubidId, trust_level as trustLevel, human, circle, issued_at as issuedAt,
+                expiry, uid, block_time as blockTime
+         FROM attestations_latest
+         WHERE cubid_id = ?`,
+      )
+      .all(cubidId) as AttestationRow[];
+
+    return rows.map((row) => ({
+      issuer: row.issuer,
+      cubidId: row.cubidId,
+      trustLevel: row.trustLevel,
+      human: Boolean(row.human),
+      circle: row.circle ?? null,
+      issuedAt: row.issuedAt,
+      expiry: row.expiry,
+      uid: row.uid,
+      blockTime: row.blockTime,
+    }));
+  }
+
+  createQrChallenge(record: QrChallengeRecord): void {
+    this.db
+      .prepare(
+        `INSERT INTO qr_challenges (id, issued_for, challenge, expires_at, used)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(record.id, record.issuedFor, record.challenge, record.expiresAt, record.used ? 1 : 0);
+  }
+
+  getQrChallenge(id: string): QrChallengeRecord | undefined {
+    const row = this.db
+      .prepare(
+        `SELECT id, issued_for as issuedFor, challenge, expires_at as expiresAt, used
+         FROM qr_challenges
+         WHERE id = ?`,
+      )
+      .get(id) as QrChallengeRow | undefined;
+
+    if (!row) {
+      return undefined;
+    }
+
+    return {
+      id: row.id,
+      issuedFor: row.issuedFor,
+      challenge: row.challenge,
+      expiresAt: row.expiresAt,
+      used: Boolean(row.used),
+    };
+  }
+
+  markQrChallengeUsed(id: string): boolean {
+    const result = this.db
+      .prepare('UPDATE qr_challenges SET used = 1 WHERE id = ? AND used = 0')
+      .run(id);
+
+    return result.changes > 0;
   }
 
   close(): void {

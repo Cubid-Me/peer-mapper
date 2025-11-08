@@ -146,16 +146,18 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 - `POST /attest/prepare` → Returns EIP-712 typed data (domain: FeeGate) with `nonce` & `deadline`.
 - `POST /attest/relay` → Relays signature + optional `value` (if it’s the 3rd attestation) to FeeGate.
 - `GET /profile/:cubidId` → Inbound latest attestations for that Cubid-ID.
-- `GET /qr/challenge` → `{ challenge, expiresAt }` (valid ~90s).
-- `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both, then:
+- `GET /qr/challenge` → `{ challengeId, challenge, expiresAt, issuedFor }` (valid ~90 s, stored in `qr_challenges`).
+- `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both with `viem.verifyMessage`, marks the challenge as used, then:
   - `POST /psi/intersection` (internal): compute overlaps with policy below.
 
-- **Rate-limits:** `psi/intersection` max **2 req/s** and **100/day** per IP (429 on exceed). Cache results **120s**.
+- **Rate-limits:** `RateLimiterMemory` enforces **2 req/s** and **100/day** per IP globally (429 on exceed).
+- **Caching:** Intersection results cached for **120 s** per `(viewer|target)` pair via in-memory LRU to cut duplicate load.
 
 ### 3.4 Overlap Policy (asymmetric allowed)
 
-- For **A viewing B**: show **issuers** who have a current attestation **about B**, and who are **in A’s trusted contacts** (A recognizes the named issuer).
+- For **A viewing B**: show **issuers** who have a current attestation **about B**, and who are **in A’s trusted contacts** (A recognizes the named issuer). MVP implementation intersects inbound attestations only.
 - Return: `issuer`, `trustLevel`, `circle`, `freshness`.
+- `freshness = now - blockTime`, ignoring rows where `expiry != 0 && now > expiry`.
 
 ### 3.5 Chain listener skeleton (Session 04)
 
