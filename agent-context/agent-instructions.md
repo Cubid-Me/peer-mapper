@@ -1,9 +1,9 @@
-Thisi document is a 10-session, soup-to-nuts implementation plan for an AI Coding Agent. Each session is a self-contained sprint with precise tasks, files to create, commands to run, tests to write, and a session log + docs update in `agent-context/`. The agent operates in VS Code with only `agent-context/technical-spec.md` provided at start.
+Thisi document is a 10+ session, soup-to-nuts implementation plan for an AI Coding Agent. Each session is a self-contained sprint with precise tasks, files to create, commands to run, tests to write, and a session log + docs update in `agent-context/`. The agent operates in VS Code with only `agent-context/technical-spec.md` provided at start.
 
 ---
 
 Current state: Session 1 completed (monorepo scaffolded).
-Next action: Start session 2, rows 135-216
+Next action: Start session 5B, rows 350++
 
 ---
 
@@ -344,6 +344,348 @@ pnpm test
 
 - Completed services & tests.
 - Session log.
+
+---
+
+# Session 5B — Add Supabase Auth and Minimal State Management
+
+## Goal
+
+Introduce **Supabase Auth** (for app sessions) and a lightweight **user profile** store (name & photo) without replacing Cubid as the identity backbone. Everyone is a “**user**” (can both vouch and be vouched for). Frontend gets a clean, persistent session; backend gains durable, RLS-protected user rows.
+
+**Outcome:**
+
+- Users sign in (Supabase session) → app fetches/sets their **Cubid-ID**, **name**, **photo**, and **EVM address**.
+- Indexer/API can safely associate calls with an authenticated `user_id`.
+- Frontend has a tiny global store for `session | user | wallet`.
+
+---
+
+## Prereqs
+
+- Session 5A (Supabase Enablement) complete.
+- Supabase project linked (`supabase link …`) and CLI logged in.
+- Frontend and Indexer already running locally.
+
+---
+
+## Tasks
+
+### 1) Add Supabase JS to frontend & server
+
+```bash
+# frontend
+pnpm -w add @supabase/supabase-js
+# indexer (only if you’ll validate JWTs server-side for protected endpoints)
+pnpm --filter indexer add @supabase/supabase-js jsonwebtoken
+```
+
+Create clients:
+
+- **frontend/lib/supabaseClient.ts**
+
+```ts
+import { createClient } from '@supabase/supabase-js';
+export const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  { auth: { persistSession: true, autoRefreshToken: true } },
+);
+```
+
+- **indexer/src/auth/supabase.ts** (optional, if validating JWTs)
+
+```ts
+import { createClient } from '@supabase/supabase-js';
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+```
+
+Add envs:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+Update `.env.example` files accordingly.
+
+---
+
+### 2) Database: users table, RLS, and supporting views
+
+Create migration:
+
+```bash
+supabase migration new add_users_profile_minimal
+```
+
+Edit `supabase/migrations/<ts>_add_users_profile_minimal.sql`:
+
+```sql
+-- Core users profile (one row per auth user)
+create table if not exists public.users (
+  user_id uuid primary key,           -- equals auth.users.id
+  cubid_id text unique,               -- app-scoped Cubid identifier
+  evm_address text unique,            -- optional: last linked EVM addr
+  display_name text,                  -- minimal user-provided name
+  photo_url text,                     -- minimal avatar/photo
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- keep updated_at fresh
+create or replace function public.set_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end $$;
+
+drop trigger if exists trg_users_set_updated_at on public.users;
+create trigger trg_users_set_updated_at
+before update on public.users
+for each row execute function public.set_updated_at();
+
+-- RLS
+alter table public.users enable row level security;
+
+-- Authenticated user can read/update only self
+create policy "users_self_select"
+on public.users for select
+to authenticated
+using (user_id = auth.uid());
+
+create policy "users_self_upsert"
+on public.users for insert
+to authenticated
+with check (user_id = auth.uid());
+
+create policy "users_self_update"
+on public.users for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+-- Service role full access (indexer / admin ops)
+grant all on table public.users to service_role;
+```
+
+Apply:
+
+```bash
+supabase db push
+```
+
+> Note: we do **not** store email/phone; Cubid remains the identity provider for PII. Supabase Auth holds sessions; `public.users` is a pseudonymous profile keyed by `auth.users.id`.
+
+---
+
+### 3) Frontend: auth flows + minimal profile UI
+
+**(a) Auth utilities**
+
+- **frontend/lib/auth.ts**
+
+```ts
+import { supabase } from './supabaseClient';
+
+export async function signInWithOtp(email: string) {
+  const { data, error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export function onAuthStateChange(cb: Function) {
+  return supabase.auth.onAuthStateChange((_event, session) => cb(session));
+}
+
+export async function getSession() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session;
+}
+```
+
+**(b) Minimal state store** (Zustand or React Context; choose one)
+
+- **frontend/lib/store.ts** (Zustand example)
+
+```ts
+import { create } from 'zustand';
+type UserState = {
+  session: any | null;
+  user: {
+    user_id: string;
+    cubid_id?: string;
+    display_name?: string;
+    photo_url?: string;
+    evm_address?: string;
+  } | null;
+  setSession: (s: any | null) => void;
+  setUser: (u: any | null) => void;
+};
+export const useUserStore = create<UserState>((set) => ({
+  session: null,
+  user: null,
+  setSession: (session) => set({ session }),
+  setUser: (user) => set({ user }),
+}));
+```
+
+**(c) Profile service**
+
+- **frontend/lib/profile.ts**
+
+```ts
+import { supabase } from './supabaseClient';
+
+export async function upsertMyProfile(p: {
+  cubid_id?: string;
+  display_name?: string;
+  photo_url?: string;
+  evm_address?: string;
+}) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('No session');
+  const { data, error } = await supabase
+    .from('users')
+    .upsert({ user_id: user.id, ...p }, { onConflict: 'user_id' })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchMyProfile() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase.from('users').select('*').eq('user_id', user.id).single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+```
+
+**(d) Sign-In page adjustments**
+
+- Let user enter email → `signInWithOtp(email)`; after callback, detect session; then:
+  - Call Cubid SDK flow to obtain **Cubid-ID**.
+  - Call `upsertMyProfile({ cubid_id, display_name, photo_url })`.
+  - Prompt wallet connect; on connect, store `evm_address` via `upsertMyProfile`.
+
+**(e) Header UI**
+
+- Show user avatar (photo_url), display_name, short EVM address, and cubid_id.
+
+---
+
+### 4) Indexer: (optional) user awareness & JWT validation
+
+If you want protected endpoints (e.g., QR issue/verify) to require Supabase Auth:
+
+- Add middleware **indexer/src/mw/requireAuth.ts**
+
+```ts
+import type { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  if (!token) return res.status(401).json({ error: 'missing token' });
+  try {
+    // Supabase JWTs are signed; you can validate with the project JWT secret if desired.
+    // For hackathon: accept presence & decode only (best-effort).
+    const decoded = jwt.decode(token) as any;
+    if (!decoded || !decoded.sub) return res.status(401).json({ error: 'invalid token' });
+    (req as any).user_id = decoded.sub;
+    next();
+  } catch {
+    return res.status(401).json({ error: 'invalid token' });
+  }
+}
+```
+
+- Apply `requireAuth` to:
+  - `POST /qr/verify`
+  - `POST /attest/prepare`
+  - `POST /attest/relay`
+
+> This ties API usage to a real Supabase session, while on-chain attestations still use EVM signatures.
+
+---
+
+### 5) State wiring in pages
+
+- On app mount: `getSession()` → `useUserStore.setSession(session)` → `fetchMyProfile()` → `setUser(profile)`.
+- When wallet connects: update `evm_address` in profile; keep current address in local state too (for signing).
+- When Cubid flow completes: ensure `cubid_id` is upserted.
+
+---
+
+### 6) Unit/Integration Tests
+
+**Frontend (JSDOM + RTL):**
+
+- `__tests__/auth.test.tsx`
+  - Mocks Supabase auth client → verifies sign-in flow sets session.
+  - After session, `fetchMyProfile` returns row (mocked).
+
+- `__tests__/profile.test.ts`
+  - `upsertMyProfile` inserts, then updates `display_name` & `photo_url`.
+
+**Indexer (supertest):**
+
+- `tests/requireAuth.test.ts`
+  - Hitting a protected route without `Authorization` → 401.
+  - With a mocked JWT → 200.
+
+**SQL lint:**
+
+```bash
+supabase db lint
+```
+
+---
+
+### 7) Docs & Session Log
+
+- **agent-context/api.md**
+  - Add note: protected routes accept `Authorization: Bearer <supabase_jwt>`.
+  - Document `users` shape (public fields only).
+
+- **agent-context/session-logs/session-05B.md**
+  Include:
+  - What changed (auth installed, users table + RLS, frontend state store).
+  - SQL migration name & checksum.
+  - Any new env vars.
+  - Screenshots of Sign-In → Profile header.
+
+---
+
+## Acceptance Criteria
+
+- Users can sign in with Supabase Auth and persist a **users** row (Cubid-ID, name, photo, EVM address).
+- Protected endpoints reject unauthenticated calls.
+- Frontend shows current user name/photo and connected wallet address.
+- Tests for auth flow and profile upsert pass.
+
+---
+
+## Notes / Guardrails
+
+- Keep **PII in Cubid**; Supabase holds only **display_name** and **photo_url** the user provides, plus Cubid-ID and wallet.
+- RLS ensures users can only read/update their own row.
+- Indexer shouldn’t require user PII—only `user_id` (from JWT) when necessary for protected actions (e.g., issuing QR challenges).
 
 ---
 
