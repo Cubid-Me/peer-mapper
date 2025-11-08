@@ -64,4 +64,34 @@ describe('IndexerDatabase', () => {
 
     db.close();
   });
+
+  it('stores and retrieves QR challenges', () => {
+    const db = new IndexerDatabase(':memory:');
+    db.migrate();
+
+    db.createQrChallenge({
+      id: 'challenge-1',
+      issuedFor: 'cubid:alice',
+      challenge: 'peer-mapper:abc',
+      expiresAt: 1234,
+      used: false,
+    });
+
+    const fetched = db.getQrChallenge('challenge-1');
+    expect(fetched).toEqual({
+      id: 'challenge-1',
+      issuedFor: 'cubid:alice',
+      challenge: 'peer-mapper:abc',
+      expiresAt: 1234,
+      used: false,
+    });
+
+    expect(db.markQrChallengeUsed('challenge-1')).toBe(true);
+    expect(db.markQrChallengeUsed('challenge-1')).toBe(false);
+
+    const updated = db.getQrChallenge('challenge-1');
+    expect(updated?.used).toBe(true);
+
+    db.close();
+  });
 });

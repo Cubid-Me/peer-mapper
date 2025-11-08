@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v6
+
+- 2025-11-08 — Session 05: implemented the overlap policy with 120 s caching, added per-IP rate limiting middleware, delivered QR challenge issuance + dual-signature verification backed by SQLite state, expanded Vitest coverage for overlaps/QR flows, and refreshed the technical spec.
+
 session: v5
 
 - 2025-11-08 — Session 04: scaffolded the Node/Express indexer with SQLite persistence, a viem-based EAS listener, and structured logging; defined `schema.sql` for latest attestation, issuer, and QR tables; added Vitest coverage for DB migrations/upserts and attestation ingestion; updated specs to capture the new backend skeleton.

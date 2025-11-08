@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS issuers (
 CREATE TABLE IF NOT EXISTS qr_challenges (
     id         TEXT PRIMARY KEY,
     issued_for TEXT NOT NULL,
+    challenge  TEXT NOT NULL,
     expires_at INTEGER NOT NULL,
     used       INTEGER NOT NULL DEFAULT 0
 );
