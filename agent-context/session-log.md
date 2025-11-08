@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v2
+
+- 2025-11-08 — Session 02: added Foundry deployment scripts for SchemaRegistry & EAS, registered CubidTrust schema definition, bumped compiler to 0.8.28, introduced deployment env vars, and documented address placeholders.
+
 session: v1
 
 - 2025-11-08 — Session 01: scaffolded pnpm monorepo (contracts/indexer/frontend), installed Foundry/tooling, vendored EAS + OZ submodules, created env templates, docs, and placeholder routes/tests.

@@ -10,7 +10,7 @@ The implementation relies on **first deploying EAS** (Ethereum Attestation Servi
 
 ## Monorepo Bootstrap (Session 1)
 
-- Workspaces: `contracts/` (Foundry 0.8.24, vendored `forge-std`, `eas-contracts`, `openzeppelin-contracts`), `indexer/` (Express + Vitest scaffold, DB + REST stubs, Dockerfile), `frontend/` (Next.js 15 + Tailwind v4 with route shells, shared libs, and UI atoms).
+- Workspaces: `contracts/` (Foundry 0.8.28, vendored `forge-std`, `eas-contracts`, `openzeppelin-contracts`), `indexer/` (Express + Vitest scaffold, DB + REST stubs, Dockerfile), `frontend/` (Next.js 15 + Tailwind v4 with route shells, shared libs, and UI atoms).
 - Tooling pinned via `tool-versions.md`, Husky 9, lint-staged, ESLint 9, Prettier 3, Solhint 6.
 - Env templates: root `.env.example` + workspace-specific `.env.example` files.
 - Docs: this spec updated, new `api-draft.md`, `session-logs/session-01.md`.
@@ -39,6 +39,8 @@ You will deploy **two contracts** to Moonbeam:
 1. `SchemaRegistry`
 2. `EAS` (the core attestation contract)
 
+The Foundry scripts in `contracts/script/DeployEAS.s.sol` and `contracts/script/RegisterSchema.s.sol` handle this flow end to end. `DeployEAS` uses the `PRIVATE_KEY_DEPLOYER` signer to broadcast both deployments, while `RegisterSchema` registers the `CubidTrust` schema against an existing registry (resolver defaults to `address(0)` until the FeeGate lands in Session 3). Both scripts log the resulting addresses so they can be copied into `agent-context/eas-addresses.md` and `.env` placeholders.
+
 > Rationale: Reusing a known standard gives you typed schemas, delegated (EIP-712) attestations, revocations, globally unique **UIDs**, and clean indexability.
 
 ### 1.2 Register the Trust Schema
@@ -59,7 +61,7 @@ resolver: FeeGate (see 1.3)
 revocable: true
 ```
 
-This yields a **schemaUID** you’ll hardcode into the app, indexer, and FeeGate.
+This yields a **schemaUID** you’ll hardcode into the app, indexer, and FeeGate. Store the deployed contract addresses and schema UID in `agent-context/eas-addresses.md` for later sessions.
 
 ### 1.3 FeeGate (minimal wrapper + resolver)
 
