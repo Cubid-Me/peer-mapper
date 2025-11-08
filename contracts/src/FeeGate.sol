@@ -11,6 +11,7 @@ import {Signature} from 'eas-contracts/Common.sol';
 import {ISchemaResolver} from 'eas-contracts/resolver/ISchemaResolver.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
 struct AttestationPayload {
     address recipient;
@@ -31,7 +32,7 @@ struct AttestationPayload {
  *         and a one-time fee on the third attestation per issuer. Supports both direct
  *         issuers and delegated (meta-transaction) attestations.
  */
-contract FeeGate is ISchemaResolver, EIP712 {
+contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
     using ECDSA for bytes32;
 
     // Constants
@@ -39,8 +40,9 @@ contract FeeGate is ISchemaResolver, EIP712 {
     uint256 public constant FEE_THRESHOLD = 3; // Fee charged on 3rd attestation
     bytes32 public constant ATTESTATION_TYPEHASH =
         keccak256(
-            'Attestation(address issuer,string cubidId,uint8 trustLevel,bool human,bytes32 circle,'
-            'uint64 issuedAt,uint64 expiry,uint256 nonce,uint64 deadline)'
+            'Attestation(address issuer,address recipient,bytes32 refUID,bool revocable,uint64 expirationTime,'
+            'string cubidId,uint8 trustLevel,bool human,bytes32 circle,uint64 issuedAt,uint64 expiry,'
+            'uint256 nonce,uint64 deadline)'
         );
 
     // Immutable state
@@ -69,6 +71,8 @@ contract FeeGate is ISchemaResolver, EIP712 {
     error InvalidSignature();
     error UnexpectedValue();
     error InvalidRecipient();
+    error InvalidIssuer();
+    error NotImplemented();
 
     /**
      * @param _eas Address of the EAS contract
@@ -85,7 +89,7 @@ contract FeeGate is ISchemaResolver, EIP712 {
      */
     function attestDirect(
         AttestationPayload calldata payload
-    ) external payable returns (bytes32 uid) {
+    ) external payable nonReentrant returns (bytes32 uid) {
         address issuer = msg.sender;
         if (payload.recipient == address(0)) revert InvalidRecipient();
 
@@ -114,8 +118,8 @@ contract FeeGate is ISchemaResolver, EIP712 {
         uint256 nonce,
         uint64 deadline,
         Signature calldata signature
-    ) external payable returns (bytes32 uid) {
-        if (issuer == address(0)) revert InvalidRecipient();
+    ) external payable nonReentrant returns (bytes32 uid) {
+        if (issuer == address(0)) revert InvalidIssuer();
         if (payload.recipient == address(0)) revert InvalidRecipient();
         if (nonce != issuerNonce[issuer]) revert InvalidNonce();
         if (deadline != 0 && block.timestamp > deadline) revert DeadlineExpired();
@@ -128,6 +132,10 @@ contract FeeGate is ISchemaResolver, EIP712 {
                 abi.encode(
                     ATTESTATION_TYPEHASH,
                     issuer,
+                    payload.recipient,
+                    payload.refUID,
+                    payload.revocable,
+                    payload.expirationTime,
                     keccak256(bytes(payload.cubidId)),
                     payload.trustLevel,
                     payload.human,
@@ -180,8 +188,6 @@ contract FeeGate is ISchemaResolver, EIP712 {
         _lastUID[issuer][cubidKey] = attestation.uid;
         emit LastUIDAnchorSet(issuer, cubidId, attestation.uid);
 
-        _currentIssuer = address(0);
-
         return true;
     }
 
@@ -207,6 +213,10 @@ contract FeeGate is ISchemaResolver, EIP712 {
      */
     function hashAttestation(
         address issuer,
+        address recipient,
+        bytes32 refUID,
+        bool revocable,
+        uint64 expirationTime,
         string calldata cubidId,
         uint8 trustLevel,
         bool human,
@@ -222,6 +232,10 @@ contract FeeGate is ISchemaResolver, EIP712 {
                     abi.encode(
                         ATTESTATION_TYPEHASH,
                         issuer,
+                        recipient,
+                        refUID,
+                        revocable,
+                        expirationTime,
                         keccak256(bytes(cubidId)),
                         trustLevel,
                         human,
@@ -261,7 +275,7 @@ contract FeeGate is ISchemaResolver, EIP712 {
         /* attestations */
         uint256[] calldata /* values */
     ) external payable override returns (bool) {
-        return true;
+        revert NotImplemented();
     }
 
     function multiRevoke(
@@ -269,7 +283,7 @@ contract FeeGate is ISchemaResolver, EIP712 {
         /* attestations */
         uint256[] calldata /* values */
     ) external payable override returns (bool) {
-        return true;
+        revert NotImplemented();
     }
 
     function version() external pure returns (string memory) {
@@ -307,7 +321,7 @@ contract FeeGate is ISchemaResolver, EIP712 {
         });
     }
 
-    function _precheckFee(address issuer, uint256 supplied, uint256 newCount) internal view {
+    function _validateFeeLogic(address issuer, uint256 supplied, uint256 newCount) internal view {
         bool paid = lifetimeFeePaid[issuer];
         if (!paid) {
             if (newCount < FEE_THRESHOLD) {
@@ -322,20 +336,17 @@ contract FeeGate is ISchemaResolver, EIP712 {
         }
     }
 
+    function _precheckFee(address issuer, uint256 supplied, uint256 newCount) internal view {
+        _validateFeeLogic(issuer, supplied, newCount);
+    }
+
     function _enforceFee(address issuer, uint256 supplied, uint256 newCount) internal {
+        _validateFeeLogic(issuer, supplied, newCount);
+        // Update state after validation
         bool paid = lifetimeFeePaid[issuer];
-        if (!paid) {
-            if (newCount < FEE_THRESHOLD) {
-                if (supplied != 0) revert UnexpectedValue();
-            } else if (newCount == FEE_THRESHOLD) {
-                if (supplied != LIFETIME_FEE) revert InsufficientFee();
-                lifetimeFeePaid[issuer] = true;
-                emit FeeCharged(issuer, LIFETIME_FEE, newCount);
-            } else {
-                revert InsufficientFee();
-            }
-        } else if (supplied != 0) {
-            revert UnexpectedValue();
+        if (!paid && newCount == FEE_THRESHOLD) {
+            lifetimeFeePaid[issuer] = true;
+            emit FeeCharged(issuer, LIFETIME_FEE, newCount);
         }
     }
 }

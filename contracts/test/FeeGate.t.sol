@@ -33,6 +33,13 @@ contract FeeGateTest is Test {
         schemaUID = registry.register(SCHEMA, ISchemaResolver(predictedFeeGate), true);
         feeGate = new FeeGate(IEAS(address(eas)), schemaUID);
 
+        // Verify predicted address matches deployed address
+        assertEq(
+            address(feeGate),
+            predictedFeeGate,
+            'FeeGate address prediction failed - setUp() modified before deployment'
+        );
+
         vm.deal(issuer, 1_000 ether);
     }
 
@@ -187,6 +194,10 @@ contract FeeGateTest is Test {
     ) internal view returns (Signature memory signature) {
         bytes32 digest = feeGate.hashAttestation(
             issuer,
+            payload.recipient,
+            payload.refUID,
+            payload.revocable,
+            payload.expirationTime,
             payload.cubidId,
             payload.trustLevel,
             payload.human,
