@@ -7,6 +7,7 @@
     "const-name-snakecase": "off",
     "use-natspec": "off",
     "gas-increment-by-one": "off",
-    "import-path-check": "off"
+    "import-path-check": "off",
+    "quotes": ["error", "single"]
   }
 }

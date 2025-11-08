@@ -1,0 +1,8 @@
+{
+  "lib/eas": {
+    "rev": "9c5ffa8b4c79e78361e1b3526257a7945dde0d61"
+  },
+  "lib/openzeppelin": {
+    "rev": "eb97fd3f153589bc4d7cd0c512956b18aa844cfd"
+  }
+}

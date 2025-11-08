@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v4
+
+- 2025-11-08 — Session 03: upgraded FeeGate with direct+delegated submission paths, explicit fee validation, hashed Cubid anchors, and helper EIP-712 views; expanded Foundry tests for delegated success, nonce/deadline failures, fee enforcement, and last-UID tracking; refreshed technical/functional specs and recorded session artefacts.
+
 session: v3
 
 - 2025-11-08 — Session 02 (completed): Fixed OpenZeppelin remappings and EVM version (paris→cancun), implemented FeeGate.sol resolver with nonce validation and 100 GLMR fee on 3rd attestation, created comprehensive test suite with 5 passing tests. All 8 tests green (3 EAS + 5 FeeGate).
