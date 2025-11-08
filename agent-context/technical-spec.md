@@ -137,6 +137,10 @@ FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so t
 
 **Freshness:** `freshness = now - max(issuedAt, blockTime)`. Ignore attns with `expiry != 0 && now > expiry`.
 
+**Session 04 implementation notes:** The indexer persists these tables via SQLite (`better-sqlite3`) migrations and enforces
+latest-wins semantics by comparing `blockTime` first and, on ties, the attestation UID so reorgs cannot resurrect stale rows.
+Revoked events delete cached rows by UID, keeping the view consistent with chain state.
+
 ### 3.3 REST Endpoints
 
 - `POST /attest/prepare` → Returns EIP-712 typed data (domain: FeeGate) with `nonce` & `deadline`.
@@ -152,6 +156,14 @@ FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so t
 
 - For **A viewing B**: show **issuers** who have a current attestation **about B**, and who are **in A’s trusted contacts** (A recognizes the named issuer).
 - Return: `issuer`, `trustLevel`, `circle`, `freshness`.
+
+### 3.5 Chain listener skeleton (Session 04)
+
+- `indexer/src/listener.ts` boots a `viem` watcher (when `MOONBEAM_RPC` is present) for EAS `Attested`/`Revoked`.
+- Each attestation fetches `getAttestation(uid)`, decodes the Cubid payload with ABI helpers, and upserts the materialized
+  view via the SQLite helper.
+- Revocations drop rows when the UID matches, keeping the cache aligned with on-chain state.
+- `indexer/src/api.ts` now wires Express, Pino logging, automatic migrations, and the listener lifecycle.
 
 ---
 
