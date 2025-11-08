@@ -7,10 +7,11 @@
     "lint:ts": "eslint . --ext .ts,.tsx --max-warnings 0",
     "lint:sol": "SOLHINT_DISABLE_UPDATE_CHECK=1 solhint \"contracts/src/**/*.sol\" \"contracts/script/**/*.sol\"",
     "format": "prettier --write .",
-    "test": "pnpm -r test",
+    "test": "cd contracts && forge test -vv",
     "env:sync": "node scripts/env-sync.ts",
     "spec:lint": "echo \"spec lint placeholder\"",
     "coverage": "bash scripts/forge-coverage.sh",
+    "build": "cd contracts && forge build",
     "prepare": "husky install"
   },
   "lint-staged": {
