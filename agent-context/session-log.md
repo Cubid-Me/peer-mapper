@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v3
+
+- 2025-11-08 — Session 02 (completed): Fixed OpenZeppelin remappings and EVM version (paris→cancun), implemented FeeGate.sol resolver with nonce validation and 100 GLMR fee on 3rd attestation, created comprehensive test suite with 5 passing tests. All 8 tests green (3 EAS + 5 FeeGate).
+
 session: v2
 
 - 2025-11-08 — Session 02: added Foundry deployment scripts for SchemaRegistry & EAS, registered CubidTrust schema definition, bumped compiler to 0.8.28, introduced deployment env vars, and documented address placeholders.

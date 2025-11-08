@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 import 'forge-std/Test.sol';
 import 'eas-contracts/SchemaRegistry.sol';
+import {ISchemaRegistry, SchemaRecord} from 'eas-contracts/ISchemaRegistry.sol';
 import 'eas-contracts/resolver/ISchemaResolver.sol';
 
 contract SchemaRegTest is Test {
@@ -13,7 +14,7 @@ contract SchemaRegTest is Test {
         SchemaRegistry registry = new SchemaRegistry();
         bytes32 uid = registry.register(SCHEMA, ISchemaResolver(address(0)), true);
 
-        SchemaRegistry.SchemaRecord memory record = registry.getSchema(uid);
+        SchemaRecord memory record = registry.getSchema(uid);
         assertEq(record.uid, uid);
         assertEq(record.schema, SCHEMA);
         assertEq(address(record.resolver), address(0));
