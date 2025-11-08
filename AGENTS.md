@@ -42,9 +42,17 @@ agent-context/           # designs, logs and other context files for developers 
 contracts/               # solidity contracts, foundry (when present)
 indexer/                 # blockchain indexer (when present)
 frontend/                # web app (when present)
+components/              # shared components (frontend)
+hooks/                   # custom React hooks (frontend)
+lib/                     # shared libraries and vendored contracts
+public/                  # static assets to be served
 scripts/                 # helper scripts (env-sync, spec-lint, coverage)
+styles/                  # global styles (frontend)
+supabase/                # latest sql schema (github action runs db pull on PR)
+test/                    # test helpers and integration tests
 README.md                # intro to the project and this repo
 AGENTS.md                # this file
+agent-setup.md           # One-time boot-strap guide for agents
 ```
 
 *Note: If any mandatory files under `.github/workflows/` or `agent-context/` are missing, agents should follow the bootstrap steps in `agent-context/agent-setup.md` (or the canonical upstream referenced there) to create them.*
