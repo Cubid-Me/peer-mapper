@@ -21,6 +21,38 @@ pnpm --filter indexer dev
 pnpm --filter frontend dev
 ```
 
+### Install Foundry (forge)
+
+This project uses Foundry for Solidity compilation and tests. Install Foundry with the official installer:
+
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+# then either open a new shell, or source the updated shell file:
+source ~/.zshenv   # or source ~/.bashrc depending on your shell
+foundryup          # install/upgrade forge, cast, anvil
+```
+
+Notes:
+
+- On macOS you may need libusb for some components: `brew install libusb`.
+- If you see a message about updating your shell PATH, follow it and open a new terminal.
+
+Verify installation:
+
+```bash
+forge --version
+cast --version
+anvil --version
+```
+
+To compile and run the Solidity tests locally:
+
+```bash
+cd contracts
+forge build
+forge test -vv
+```
+
 ### Directory Structure
 
 ```
