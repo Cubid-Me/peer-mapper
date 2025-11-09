@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent,useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { upsertMyProfile } from "../../../lib/profile";
 import { useUserStore } from "../../../lib/store";
@@ -12,10 +12,8 @@ export default function ProfilePage() {
   const profile = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
 
-  const [form, setForm] = useState({
-    displayName: profile?.display_name ?? "",
-    photoUrl: profile?.photo_url ?? "",
-  });
+  const [displayName, setDisplayName] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,13 +22,6 @@ export default function ProfilePage() {
       router.replace("/(routes)/signin");
     }
   }, [router, session]);
-
-  useEffect(() => {
-    setForm({
-      displayName: profile?.display_name ?? "",
-      photoUrl: profile?.photo_url ?? "",
-    });
-  }, [profile]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -42,10 +33,12 @@ export default function ProfilePage() {
     setError(null);
     try {
       const updated = await upsertMyProfile({
-        display_name: form.displayName,
-        photo_url: form.photoUrl,
+        display_name: displayName,
+        photo_url: photoUrl,
       });
       setUser(updated);
+      setDisplayName(updated.display_name ?? "");
+      setPhotoUrl(updated.photo_url ?? "");
       setStatus("Profile updated");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update profile";
@@ -70,8 +63,8 @@ export default function ProfilePage() {
         <label className="flex flex-col gap-1 text-sm font-medium">
           Display name
           <input
-            value={form.displayName}
-            onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
+            value={displayName || profile?.display_name || ""}
+            onChange={(event) => setDisplayName(event.target.value)}
             className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
             placeholder="Casey Mapper"
           />
@@ -79,8 +72,8 @@ export default function ProfilePage() {
         <label className="flex flex-col gap-1 text-sm font-medium">
           Photo URL
           <input
-            value={form.photoUrl}
-            onChange={(event) => setForm((prev) => ({ ...prev, photoUrl: event.target.value }))}
+            value={photoUrl || profile?.photo_url || ""}
+            onChange={(event) => setPhotoUrl(event.target.value)}
             className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
             placeholder="https://example.com/avatar.png"
           />

@@ -30,7 +30,7 @@ function mapAttestation(record: AttestationRecord, nowSeconds: number) {
 
 router.get('/:cubidId', (req, res) => {
   const { cubidId } = req.params;
-  const issuer = typeof req.query.issuer === 'string' ? (req.query.issuer as string) : undefined;
+  const issuer = typeof req.query.issuer === 'string' ? (req.query.issuer as string).toLowerCase() : undefined;
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   const database = getDatabase();

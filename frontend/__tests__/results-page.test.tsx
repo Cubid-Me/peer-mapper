@@ -30,7 +30,7 @@ describe("ResultsPage", () => {
 
     render(<ResultsPage />);
 
-    expect(screen.getByText(/share 1 trusted issuers/)).toBeInTheDocument();
+    expect(screen.getByText(/share 1 trusted issuer/)).toBeInTheDocument();
     expect(screen.getByText("0xIssuerInbound")).toBeInTheDocument();
     expect(screen.getByText("4")).toBeInTheDocument();
     expect(screen.getByText("0x1234")).toBeInTheDocument();

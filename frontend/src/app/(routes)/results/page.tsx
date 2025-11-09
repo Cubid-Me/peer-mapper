@@ -19,7 +19,7 @@ export default function ResultsPage() {
       {result ? (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            You ({result.viewerCubid}) and {result.targetCubid} share {result.overlaps.length} trusted issuers.
+            You ({result.viewerCubid}) and {result.targetCubid} share {result.overlaps.length} trusted {result.overlaps.length === 1 ? "issuer" : "issuers"}.
           </p>
           <div className="space-y-2">
             {result.overlaps.map((item) => (

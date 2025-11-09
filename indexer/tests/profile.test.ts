@@ -43,7 +43,7 @@ describe('profile routes', () => {
     const app = buildApp({ rateLimit: { perSecond: 100, perDay: 1000 } });
 
     seedAttestation({
-      issuer: '0xIssuerInbound',
+      issuer: '0xissuerinbound',
       cubidId: 'viewer',
       trustLevel: 3,
       blockTime: Math.floor(TEST_NOW / 1000) - 120,
@@ -51,7 +51,7 @@ describe('profile routes', () => {
     });
 
     seedAttestation({
-      issuer: '0xIssuerViewer',
+      issuer: '0xissuerviewer',
       cubidId: 'friend-1',
       trustLevel: 5,
       blockTime: Math.floor(TEST_NOW / 1000) - 45,
@@ -66,7 +66,7 @@ describe('profile routes', () => {
     expect(res.body.cubidId).toBe('viewer');
     expect(res.body.inbound).toEqual([
       expect.objectContaining({
-        issuer: '0xIssuerInbound',
+        issuer: '0xissuerinbound',
         cubidId: 'viewer',
         trustLevel: 3,
         circle: '0x1234',
@@ -75,7 +75,7 @@ describe('profile routes', () => {
     ]);
     expect(res.body.outbound).toEqual([
       expect.objectContaining({
-        issuer: '0xIssuerViewer',
+        issuer: '0xissuerviewer',
         cubidId: 'friend-1',
         trustLevel: 5,
         circle: null,
@@ -88,7 +88,7 @@ describe('profile routes', () => {
     const app = buildApp({ rateLimit: { perSecond: 100, perDay: 1000 } });
 
     seedAttestation({
-      issuer: '0xIssuerExpired',
+      issuer: '0xissuerexpired',
       cubidId: 'viewer',
       trustLevel: 1,
       blockTime: Math.floor(TEST_NOW / 1000) - 30,

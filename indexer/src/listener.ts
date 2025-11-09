@@ -116,7 +116,7 @@ export async function processAttested(
 
   const decoded = decodeAttestationData(log.data);
   const attestation: AttestationRecord = {
-    issuer: log.attester,
+    issuer: log.attester.toLowerCase(),
     cubidId: decoded.cubidId,
     trustLevel: decoded.trustLevel,
     human: decoded.human,

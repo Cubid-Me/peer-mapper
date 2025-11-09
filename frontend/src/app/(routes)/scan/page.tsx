@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent,useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 
 import QRDisplay from "@/components/QRDisplay";
 import QRScanner from "@/components/QRScanner";

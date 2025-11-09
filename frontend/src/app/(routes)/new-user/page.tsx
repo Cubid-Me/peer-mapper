@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent,useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { isValidCubidId, requestCubidId } from "../../../lib/cubid";
 import { upsertMyProfile } from "../../../lib/profile";

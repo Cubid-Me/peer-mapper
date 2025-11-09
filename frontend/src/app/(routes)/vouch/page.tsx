@@ -49,6 +49,15 @@ export default function VouchPage() {
         throw new Error("Recipient wallet must be a 0x-prefixed address");
       }
 
+      const expiryValue = (() => {
+        if (!expiry) return 0;
+        const expiryNum = Number(expiry);
+        if (isNaN(expiryNum) || expiryNum < 0) {
+          throw new Error("Expiry must be a non-negative number");
+        }
+        return expiryNum;
+      })();
+
       const response = await prepareAttestation({
         issuer,
         recipient,
@@ -57,7 +66,7 @@ export default function VouchPage() {
         human,
         circle: normaliseCircle(circle),
         issuedAt: Math.floor(Date.now() / 1000),
-        expiry: expiry ? Number(expiry) : 0,
+        expiry: expiryValue,
       });
 
       setPrepared(response);

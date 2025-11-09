@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent,useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { signInWithOtp } from "../../../lib/auth";
 import { useUserStore } from "../../../lib/store";
