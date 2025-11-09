@@ -1,13 +1,17 @@
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { privateKeyToAccount } from 'viem/accounts';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildApp } from '../src/api';
 import { AttestationRecord, getDatabase, resetSingleton } from '../src/db';
+import { refreshEnv } from '../src/env';
 import { clearOverlapCache } from '../src/services/overlap';
 
 const viewerAccount = privateKeyToAccount('0x1111111111111111111111111111111111111111111111111111111111111111');
 const targetAccount = privateKeyToAccount('0x2222222222222222222222222222222222222222222222222222222222222222');
+
+const TEST_SECRET = 'test-secret';
 
 function seedAttestation(record: Partial<AttestationRecord>) {
   const db = getDatabase();
@@ -25,10 +29,25 @@ function seedAttestation(record: Partial<AttestationRecord>) {
   });
 }
 
+function authHeader(userId = 'test-user') {
+  return `Bearer ${jwt.sign({ sub: userId }, TEST_SECRET, { expiresIn: '1h' })}`;
+}
+
+beforeAll(() => {
+  process.env.SUPABASE_JWT_SECRET = TEST_SECRET;
+  refreshEnv();
+});
+
 describe('QR routes', () => {
   beforeEach(() => {
     resetSingleton();
     clearOverlapCache();
+  });
+
+  it('requires authentication when configured', async () => {
+    const app = buildApp({ rateLimit: { perSecond: 100, perDay: 1000 } });
+
+    await request(app).get('/qr/challenge').query({ issuedFor: 'target' }).expect(401);
   });
 
   it('issues a challenge and verifies overlap while preventing replays', async () => {
@@ -38,7 +57,11 @@ describe('QR routes', () => {
     seedAttestation({ issuer: '0xIssuerShared', cubidId: 'target', blockTime: 1_700_000_100, uid: '0x02' });
     seedAttestation({ issuer: '0xIssuerOther', cubidId: 'target', uid: '0x03' });
 
-    const challengeRes = await request(app).get('/qr/challenge').query({ issuedFor: 'target' }).expect(200);
+    const challengeRes = await request(app)
+      .get('/qr/challenge')
+      .set('Authorization', authHeader())
+      .query({ issuedFor: 'target' })
+      .expect(200);
     const { challengeId, challenge } = challengeRes.body as { challengeId: string; challenge: string };
 
     const payload = {
@@ -56,7 +79,11 @@ describe('QR routes', () => {
       },
     };
 
-    const verifyRes = await request(app).post('/qr/verify').send(payload).expect(200);
+    const verifyRes = await request(app)
+      .post('/qr/verify')
+      .set('Authorization', authHeader())
+      .send(payload)
+      .expect(200);
     expect(verifyRes.body.overlaps).toEqual([
       {
         issuer: '0xIssuerShared',
@@ -66,7 +93,7 @@ describe('QR routes', () => {
       },
     ]);
 
-    await request(app).post('/qr/verify').send(payload).expect(409);
+    await request(app).post('/qr/verify').set('Authorization', authHeader()).send(payload).expect(409);
   });
 
   it('rejects expired challenges', async () => {
@@ -96,6 +123,6 @@ describe('QR routes', () => {
       },
     };
 
-    await request(app).post('/qr/verify').send(payload).expect(410);
+    await request(app).post('/qr/verify').set('Authorization', authHeader()).send(payload).expect(410);
   });
 });

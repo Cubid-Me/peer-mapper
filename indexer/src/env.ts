@@ -12,23 +12,63 @@ const envSchema = z.object({
   MOONBEAM_RPC: z.string().min(1).optional(),
   RATE_LIMIT_RPS: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_DAILY: z.coerce.number().int().positive().optional(),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_JWT_SECRET: z.string().min(1).optional(),
 });
 
-const parsed = envSchema.safeParse(process.env);
+export type EnvValues = {
+  databaseUrl: string;
+  registryAddress: string;
+  easAddress: string;
+  schemaUid: string;
+  feeGateAddress: string;
+  rpcUrl?: string;
+  rateLimitPerSecond: number;
+  rateLimitDaily: number;
+  supabase: {
+    url?: string;
+    serviceRoleKey?: string;
+    jwtSecret?: string;
+  };
+};
 
-if (!parsed.success) {
-  throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
+let cache: EnvValues | null = null;
+
+function parseEnv(): EnvValues {
+  const parsed = envSchema.safeParse(process.env);
+
+  if (!parsed.success) {
+    throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
+  }
+
+  const values = parsed.data;
+
+  return {
+    databaseUrl: values.DATABASE_URL,
+    registryAddress: values.REGISTRY_ADDR,
+    easAddress: values.EAS_ADDR,
+    schemaUid: values.SCHEMA_UID,
+    feeGateAddress: values.FEEGATE_ADDR,
+    rpcUrl: values.MOONBEAM_RPC,
+    rateLimitPerSecond: values.RATE_LIMIT_RPS ?? 2,
+    rateLimitDaily: values.RATE_LIMIT_DAILY ?? 100,
+    supabase: {
+      url: values.SUPABASE_URL,
+      serviceRoleKey: values.SUPABASE_SERVICE_ROLE_KEY,
+      jwtSecret: values.SUPABASE_JWT_SECRET,
+    },
+  };
 }
 
-const values = parsed.data;
+export function getEnv(): EnvValues {
+  if (!cache) {
+    cache = parseEnv();
+  }
+  return cache;
+}
 
-export const env = {
-  databaseUrl: values.DATABASE_URL,
-  registryAddress: values.REGISTRY_ADDR,
-  easAddress: values.EAS_ADDR,
-  schemaUid: values.SCHEMA_UID,
-  feeGateAddress: values.FEEGATE_ADDR,
-  rpcUrl: values.MOONBEAM_RPC,
-  rateLimitPerSecond: values.RATE_LIMIT_RPS ?? 2,
-  rateLimitDaily: values.RATE_LIMIT_DAILY ?? 100,
-};
+export function refreshEnv(): EnvValues {
+  cache = parseEnv();
+  return cache;
+}

@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v7
+
+- 2025-11-08 — Session 05B: wired Supabase auth across frontend and indexer, added the shared `public.users` profile migration with RLS, introduced Zustand-backed session storage, refreshed sign-in flow for magic-link + profile updates, and documented the Supabase-powered architecture.
+
 session: v6
 
 - 2025-11-08 — Session 05: implemented the overlap policy with 120 s caching, added per-IP rate limiting middleware, delivered QR challenge issuance + dual-signature verification backed by SQLite state, expanded Vitest coverage for overlaps/QR flows, and refreshed the technical spec.

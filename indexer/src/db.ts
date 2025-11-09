@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import Database from 'better-sqlite3';
 
-import { env } from './env';
+import { getEnv } from './env';
 
 export interface AttestationRecord {
   issuer: string;
@@ -260,6 +260,7 @@ let singleton: IndexerDatabase | undefined;
 
 export function getDatabase(): IndexerDatabase {
   if (!singleton) {
+    const env = getEnv();
     singleton = new IndexerDatabase(env.databaseUrl);
     singleton.migrate();
   }

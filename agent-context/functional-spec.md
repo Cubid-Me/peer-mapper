@@ -17,8 +17,9 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ### 2.1 Authentication & Identity
 
-- As a **user**, I can sign in using my **email or phone** through Cubid, receiving an **app-scoped Cubid ID**.
-- As a **user**, I can optionally connect an **EVM wallet (Nova Wallet)** to fund or sign attestations.
+- As a **user**, I can request a Supabase **magic link** (email) to establish an authenticated session without leaving the app.
+- As a **user**, once signed in I can populate my profile in `public.users` with a **Cubid ID**, **display name**, and optional **photo URL** that other features rely on.
+- As a **user**, I can optionally connect an **EVM wallet (Nova Wallet)** to fund or sign attestations, and the linked address is stored with my Supabase profile.
 
 ### 2.2 Creating Attestations (Vouching)
 
@@ -77,9 +78,9 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 ### 3.1 Screens
 
 1. **Sign-In**
-   - Cubid authentication (email → OTP)
-   - Connect wallet (Nova)
-   - Shows current Cubid ID and address
+   - Request Supabase magic link and confirm session status
+   - Capture Cubid ID / display name / photo for the Supabase profile
+   - Connect wallet (Nova) and persist the selected address
 
 2. **My Circle**
    - Tabs: _I Trust_ / _Trusts Me_
@@ -107,13 +108,13 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 | Behavior                       | Description                                                                                          |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **Authentication**             | Only verified Cubid users can issue or view attestations.                                            |
+| **Authentication**             | Supabase access tokens guard QR/PSI APIs and profiles respect `auth.uid()` RLS.                      |
 | **Attestation Directionality** | Trust is one-way; A→B doesn’t imply B→A.                                                             |
 | **Latest Wins**                | The latest attestation (by UID or block time) overrides any prior between the same issuer & subject. |
 | **Fee Enforcement**            | FeeGate enforces 100 GLMR charge on 3rd attestation; 1st and 2nd are free.                           |
 | **Delegated Signing**          | EIP-712 signatures allow gasless submission via app relayer.                                         |
 | **Expiry Handling**            | Indexer filters out expired attestations; chain does not auto-delete them.                           |
-| **Privacy**                    | Only Cubid IDs are stored; no personal data.                                                         |
+| **Privacy**                    | Only Cubid IDs plus optional display name/photo are stored; Supabase RLS blocks cross-user reads.    |
 | **Rate Limits**                | Indexer limits read requests (2 req/s per IP; 100/day).                                              |
 | **Caching**                    | Overlap results cached for 120 s to avoid redundant computation.                                     |
 | **Challenge Validity**         | QR challenges expire after 90 s and cannot be reused.                                                |
@@ -122,27 +123,28 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ## 5. External Interactions
 
-| Component                              | Purpose                                | Interaction                                   |
-| -------------------------------------- | -------------------------------------- | --------------------------------------------- |
-| **Cubid SDK**                          | Authentication & issuance of Cubid IDs | App calls Cubid API for sign-in and ID lookup |
-| **EAS (Ethereum Attestation Service)** | On-chain attestation registry          | FeeGate relays attestations to EAS contract   |
-| **FeeGate Resolver**                   | Validation & spam control              | Enforces per-issuer nonce and fee threshold   |
-| **Moonbeam RPC**                       | Blockchain backend                     | Transactions and event subscriptions          |
-| **Indexer (Node.js)**                  | Off-chain aggregator                   | Subscribes to EAS events; exposes REST API    |
-| **Frontend (Next.js)**                 | User interface                         | Fetches and posts to indexer API              |
+| Component                              | Purpose                                | Interaction                                                                                                                   |
+| -------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Supabase Auth**                      | Session management & profile storage   | Next.js uses `@supabase/supabase-js` for magic link auth and profile CRUD; indexer verifies JWTs using `SUPABASE_JWT_SECRET`. |
+| **Cubid SDK**                          | Authentication & issuance of Cubid IDs | App still invokes Cubid flows post-login to obtain Cubid IDs for attestations.                                                |
+| **EAS (Ethereum Attestation Service)** | On-chain attestation registry          | FeeGate relays attestations to EAS contracts.                                                                                 |
+| **FeeGate Resolver**                   | Validation & spam control              | Enforces per-issuer nonce and fee threshold.                                                                                  |
+| **Moonbeam RPC**                       | Blockchain backend                     | Transactions and event subscriptions.                                                                                         |
+| **Indexer (Node.js)**                  | Off-chain aggregator                   | Subscribes to EAS events; exposes REST API.                                                                                   |
+| **Frontend (Next.js)**                 | User interface                         | Fetches and posts to indexer API.                                                                                             |
 
 ---
 
 ## 6. API Endpoints (Functional Behavior)
 
-| Endpoint                | Method | Description                                                 |
-| ----------------------- | ------ | ----------------------------------------------------------- |
-| `/api/attest/prepare`   | GET    | Returns EIP-712 message to sign for given attestation input |
-| `/api/attest/relay`     | POST   | Submits signed data to FeeGate and relays tx                |
-| `/api/profile/:cubidId` | GET    | Lists inbound/outbound attestations for a Cubid ID          |
-| `/api/qr/challenge`     | GET    | Issues one-time challenge for QR handshake                  |
-| `/api/qr/verify`        | POST   | Validates challenge signatures and returns overlaps         |
-| `/api/overlaps`         | POST   | (Optional) Computes overlaps directly between two Cubid IDs |
+| Endpoint                | Method | Description                                                                                    |
+| ----------------------- | ------ | ---------------------------------------------------------------------------------------------- |
+| `/api/attest/prepare`   | GET    | Returns EIP-712 message to sign for given attestation input                                    |
+| `/api/attest/relay`     | POST   | Submits signed data to FeeGate and relays tx                                                   |
+| `/api/profile/:cubidId` | GET    | Lists inbound/outbound attestations for a Cubid ID                                             |
+| `/api/qr/challenge`     | GET    | Issues one-time challenge for QR handshake (requires Supabase `Authorization` header)          |
+| `/api/qr/verify`        | POST   | Validates challenge signatures and returns overlaps (requires Supabase `Authorization` header) |
+| `/api/overlaps`         | POST   | (Optional) Computes overlaps directly between two Cubid IDs                                    |
 
 ---
 
@@ -163,7 +165,7 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 - **Performance:** API responses under 500 ms except during chain lag.
 - **Scalability:** Indexer supports 10 000 attestations in SQLite without degradation.
 - **Reliability:** System recovers on restart and replays chain events.
-- **Privacy:** No raw emails/phones stored—only Cubid IDs and hashes.
+- **Privacy:** No raw emails/phones stored—Supabase holds Cubid IDs plus optional display name/photo under RLS.
 - **Availability:** ≥ 99% during demo window.
 - **Usability:** Each flow completable in ≤ 4 taps.
 
@@ -180,9 +182,10 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 ## 10. Deliverables Summary
 
 - Working web app on Vercel (Next.js)
+- Supabase project linked with `public.users` migration and environment wiring
 - Smart contracts (EAS fork + FeeGate) deployed on Moonbeam
 - Indexer API running publicly
-- Cubid authentication fully functional
+- Supabase magic-link authentication bridged with Cubid ID assignment
 - Demonstrable handshake flow showing shared trusted contacts
 - MIT-licensed codebase with README and deployment docs
 

@@ -3,7 +3,7 @@ import { createPublicClient, decodeAbiParameters, Hex, http } from 'viem';
 import { moonbeam } from 'viem/chains';
 
 import { AttestationRecord, getDatabase, IndexerDatabase } from './db';
-import { env } from './env';
+import { getEnv } from './env';
 
 const ATTESTATION_FIELDS = [
   { name: 'cubidId', type: 'string' },
@@ -109,6 +109,7 @@ export async function processAttested(
   log: AttestedLog,
   database: IndexerDatabase = getDatabase(),
 ): Promise<boolean> {
+  const env = getEnv();
   if (log.schemaUID.toLowerCase() !== env.schemaUid.toLowerCase()) {
     return false;
   }
@@ -133,6 +134,7 @@ export function processRevoked(
   log: RevokedLog,
   database: IndexerDatabase = getDatabase(),
 ): boolean {
+  const env = getEnv();
   if (log.schemaUID.toLowerCase() !== env.schemaUid.toLowerCase()) {
     return false;
   }
@@ -143,6 +145,7 @@ export function processRevoked(
 export function startListener(options: ListenerOptions = {}): () => void {
   const logger = options.logger ?? pino({ name: 'indexer-listener' });
   const database = options.database ?? getDatabase();
+  const env = getEnv();
   const transportUrl = options.transportUrl ?? env.rpcUrl;
 
   if (!transportUrl) {

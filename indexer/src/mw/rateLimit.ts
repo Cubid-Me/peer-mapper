@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { RateLimiterMemory, RateLimiterRes } from 'rate-limiter-flexible';
 
-import { env } from '../env';
+import { getEnv } from '../env';
 
 export interface RateLimitConfig {
   perSecond?: number;
@@ -10,6 +10,7 @@ export interface RateLimitConfig {
 }
 
 export function createRateLimitMiddleware(config: RateLimitConfig = {}) {
+  const env = getEnv();
   const perSecondLimit = config.perSecond ?? env.rateLimitPerSecond;
   const perDayLimit = config.perDay ?? env.rateLimitDaily;
   const keyGenerator = config.keyGenerator ?? ((req: Request) => req.ip ?? 'anonymous');
