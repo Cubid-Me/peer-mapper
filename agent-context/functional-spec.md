@@ -77,30 +77,36 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ### 3.1 Screens
 
-1. **Sign-In**
-   - Request Supabase magic link and confirm session status
-   - Capture Cubid ID / display name / photo for the Supabase profile
-   - Connect wallet (Nova) and persist the selected address
+1. **Sign-In (`/(routes)/signin`)**
+   - Collects email and triggers Supabase magic-link delivery.
+   - Watches `useUserStore.session`; once authenticated it redirects to either onboarding or the circle view depending on profile completeness.
+   - Surfaces inline success/error states ("Check your inbox…", "Failed to send magic link").
 
-2. **My Circle**
-   - Tabs: _I Trust_ / _Trusts Me_
-   - List of attestations (avatar, circle, level)
-   - “Vouch for New Contact” button
+2. **Onboarding (`/(routes)/new-user`)**
+   - Guides the user through display name + photo capture, Cubid ID generation (`requestCubidId`), and Nova/EVM wallet linking (`ensureWallet`).
+   - Writes updates via `upsertMyProfile`, showing status banners for generation, wallet linking, and profile persistence.
 
-3. **Vouch**
-   - Form fields: target Cubid ID, trust level, circle, expiry toggle
-   - Submit button → triggers signing flow
-   - Displays fee notice on 3rd attestation
+3. **Profile (`/(routes)/profile`)**
+   - Displays read-only Cubid ID + wallet, allows editing display name/photo, and persists changes with `upsertMyProfile`.
+   - Redirects back to sign-in when no Supabase session is present.
 
-4. **Scan / Verify**
-   - Show QR of own Cubid ID
-   - Scan peer QR → initiate handshake
-   - Show verifying state / spinner
+4. **My Circle (`/(routes)/circle`)**
+   - Fetches inbound/outbound attestations through `getProfile(cubidId, { issuer })`, formats freshness (seconds → minutes/hours/days), and lets users query arbitrary Cubid IDs.
+   - Highlights missing onboarding by showing a warning when the viewer lacks a Cubid ID.
 
-5. **Results**
-   - List of mutual trusted contacts
-   - Visual indicator of freshness (new / old)
-   - Option to vouch for peer directly from this page
+5. **Vouch (`/(routes)/vouch`)**
+   - Collects Cubid ID, recipient wallet, trust level slider, circle hex tag, expiry, and human checkbox.
+   - Calls `/attest/prepare`, prompts for `eth_signTypedData_v4`, and relays via `/attest/relay` while surfacing lifetime-fee requirements and transaction status.
+   - Renders a QR preview of `{ cubidId, ts }` for quick sharing.
+
+6. **Scan / Verify (`/(routes)/scan`)**
+   - Shows the viewer’s QR payload and a helper scanner textarea for pasted JSON.
+   - Parses peer payloads, requests `/qr/challenge`, records the viewer’s wallet signature, collects the peer’s signature/address, and verifies overlaps via `/qr/verify`.
+   - Streams progress updates (challenge issued, viewer signature captured, overlap ready) and inline validation errors (missing cubidId, wallet access denied, unsigned target).
+
+7. **Results (`/(routes)/results`)**
+   - Reads the cached verification result from `useScanStore` and displays badge cards listing issuer short addresses, trust levels, circle tags, and freshness.
+   - Shows an empty-state prompt when no verification has been performed yet.
 
 ---
 

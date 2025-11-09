@@ -2,10 +2,12 @@ import Link from "next/link";
 
 const LINKS = [
   { href: "/(routes)/signin", label: "1. Sign in" },
-  { href: "/(routes)/circle", label: "2. My circle" },
-  { href: "/(routes)/vouch", label: "3. Vouch" },
-  { href: "/(routes)/scan", label: "4. Scan" },
-  { href: "/(routes)/results", label: "5. Results" },
+  { href: "/(routes)/new-user", label: "2. Onboard" },
+  { href: "/(routes)/circle", label: "3. My circle" },
+  { href: "/(routes)/profile", label: "4. Profile" },
+  { href: "/(routes)/vouch", label: "5. Vouch" },
+  { href: "/(routes)/scan", label: "6. Scan" },
+  { href: "/(routes)/results", label: "7. Results" },
 ];
 
 export default function Home() {
