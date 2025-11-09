@@ -205,7 +205,7 @@ export default function CameraPage() {
 
         <div className="space-y-5">
           {parsed ? (
-            <div className="space-y-3 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 shadow-inner shadow-black/40 text-sm text-slate-200">
+            <div className="text-sm text-slate-200 space-y-3 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 shadow-inner shadow-black/40">
               <p className="font-medium text-slate-50">Target Cubid: {parsed.cubidId}</p>
               <button
                 className="rounded-full border border-slate-600/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200"
