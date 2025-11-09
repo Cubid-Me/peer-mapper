@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import QRDisplay from "@/components/QRDisplay";
 import { prepareAttestation, relayAttestation } from "@/lib/api";
 import { isValidCubidId } from "@/lib/cubid";
+import { useRequireCompletedOnboarding } from "@/lib/onboarding";
 import { useUserStore } from "@/lib/store";
 import { ensureWallet } from "@/lib/wallet";
 
 export default function VouchPage() {
+  const { ready } = useRequireCompletedOnboarding();
   const [cubid, setCubid] = useState("");
   const [recipient, setRecipient] = useState("");
   const [trustLevel, setTrustLevel] = useState(3);
@@ -25,6 +27,15 @@ export default function VouchPage() {
 
   const valid = isValidCubidId(cubid);
   const payload = useMemo(() => ({ cubidId: cubid || "cubid_demo", ts: Date.now() }), [cubid]);
+
+  if (!ready) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Preparing attestation tools…</h1>
+        <p className="text-sm text-muted-foreground">Confirming your onboarding status.</p>
+      </section>
+    );
+  }
 
   function normaliseCircle(value: string): string | null {
     const trimmed = value.trim();

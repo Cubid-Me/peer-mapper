@@ -9,6 +9,7 @@ const DEVELOPER_SHORTCUTS = [
   { href: "/scan/my-qr", label: "6. My QR" },
   { href: "/scan/camera", label: "7. Camera" },
   { href: "/results", label: "8. Results" },
+  { href: "/indexer", label: "9. Indexer" },
 ];
 
 export function AppFooter() {

@@ -1,12 +1,45 @@
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import type { Session } from "@supabase/supabase-js";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ResultsPage from "../src/app/(routes)/results/page";
 import { useScanStore } from "../src/lib/scanStore";
+import { useUserStore } from "../src/lib/store";
+
+const { replaceMock } = vi.hoisted(() => ({ replaceMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+}));
 
 describe("ResultsPage", () => {
   beforeEach(() => {
     useScanStore.getState().reset();
+    replaceMock.mockReset();
+    act(() => {
+      useUserStore.getState().reset();
+    });
+
+    const session = { access_token: "token", user: { id: "user-1" } } as unknown as Session;
+    act(() => {
+      useUserStore.setState({
+        session,
+        user: {
+          user_id: "user-1",
+          cubid_id: "cubid_me",
+          display_name: "Maple",
+          evm_address: "0x123",
+        },
+        walletAddress: null,
+        initialised: true,
+      });
+    });
+  });
+
+  afterEach(() => {
+    act(() => {
+      useUserStore.getState().reset();
+    });
   });
 
   it("prompts for verification when no result is cached", () => {

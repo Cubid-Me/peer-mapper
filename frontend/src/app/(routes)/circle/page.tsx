@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { ProfileResponse } from "@/lib/api";
 import { getProfile } from "@/lib/api";
+import { useRequireCompletedOnboarding } from "@/lib/onboarding";
 import { useUserStore } from "@/lib/store";
 
 function formatFreshness(seconds: number): string {
@@ -14,33 +15,38 @@ function formatFreshness(seconds: number): string {
 }
 
 export default function CirclePage() {
-  const profile = useUserStore((state) => state.user);
+  const { profile, ready } = useRequireCompletedOnboarding();
   const walletAddress = useUserStore((state) => state.walletAddress ?? state.user?.evm_address ?? null);
 
-  const [query, setQuery] = useState(profile?.cubid_id ?? "");
-  const [activeCubid, setActiveCubid] = useState(profile?.cubid_id ?? "");
   const [data, setData] = useState<ProfileResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const profileReady = useMemo(() => Boolean(profile?.cubid_id), [profile?.cubid_id]);
-
   useEffect(() => {
-    setQuery(profile?.cubid_id ?? "");
-    setActiveCubid(profile?.cubid_id ?? "");
-  }, [profile?.cubid_id]);
-
-  useEffect(() => {
-    if (!activeCubid) {
+    if (!ready) {
       setData(null);
       return;
     }
+    const cubidId = profile?.cubid_id ?? null;
+    const issuer = walletAddress ?? profile?.evm_address ?? null;
+    if (!cubidId) {
+      setData(null);
+      setStatus(null);
+      setError("Your profile is missing a Cubid ID.");
+      return;
+    }
+    if (!issuer) {
+      setData(null);
+      setStatus(null);
+      setError("Connect your wallet to view issued credentials.");
+      return;
+    }
     let cancelled = false;
-    async function fetchData() {
+    async function fetchData(currentCubid: string, currentIssuer: string) {
       setStatus("Loading attestations…");
       setError(null);
       try {
-        const result = await getProfile(activeCubid, { issuer: walletAddress ?? undefined });
+        const result = await getProfile(currentCubid, { issuer: currentIssuer });
         if (!cancelled) {
           setData(result);
           setStatus(null);
@@ -54,51 +60,55 @@ export default function CirclePage() {
       }
     }
 
-    fetchData();
+    void fetchData(cubidId, issuer);
     return () => {
       cancelled = true;
     };
-  }, [activeCubid, walletAddress]);
+  }, [profile?.cubid_id, profile?.evm_address, ready, walletAddress]);
+
+  const groupedByCircle = useMemo(() => {
+    if (!data) {
+      return [] as Array<{ circle: string | null; items: ProfileResponse["outbound"] }>;
+    }
+    const groups = new Map<string | null, ProfileResponse["outbound"]>();
+    for (const attn of data.outbound) {
+      const key = attn.circle ?? null;
+      const list = groups.get(key) ?? [];
+      list.push(attn);
+      groups.set(key, list);
+    }
+    return Array.from(groups.entries())
+      .map(([circle, items]) => ({ circle, items: items.sort((a, b) => a.freshnessSeconds - b.freshnessSeconds) }))
+      .sort((a, b) => {
+        const circleA = a.circle ?? "";
+        const circleB = b.circle ?? "";
+        return circleA.localeCompare(circleB);
+      });
+  }, [data]);
+
+  if (!ready) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Checking your circle…</h1>
+        <p className="text-sm text-muted-foreground">We’re verifying your onboarding details.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">My Circle</h1>
         <p className="text-muted-foreground">
-          View the latest inbound attestations for a Cubid ID and track who you&apos;ve vouched for using your connected wallet.
+          Explore every credential you&apos;ve issued and see who&apos;s vouched for you.
         </p>
       </header>
-
-      <div className="space-y-2">
-        <label className="flex flex-col gap-2 text-sm font-medium sm:flex-row sm:items-center">
-          <span>Search Cubid ID</span>
-          <div className="flex w-full gap-2 sm:w-auto">
-            <input
-              className="flex-1 rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="cubid_peer123"
-              value={query}
-            />
-            <button
-              className="rounded bg-black px-4 py-2 text-white shadow-sm transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-black"
-              disabled={!query}
-              onClick={() => setActiveCubid(query.trim())}
-              type="button"
-            >
-              Load
-            </button>
-          </div>
-        </label>
-        {!profileReady ? (
-          <p className="text-sm text-red-500">Complete onboarding to view your circle.</p>
-        ) : null}
-      </div>
 
       {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       {data ? (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-6">
           <section className="space-y-3">
             <h2 className="text-xl font-semibold">Inbound ({data.inbound.length})</h2>
             <p className="text-sm text-muted-foreground">Wallets who vouched for {data.cubidId}.</p>
@@ -114,22 +124,37 @@ export default function CirclePage() {
               {data.inbound.length === 0 ? <li className="text-sm text-muted-foreground">No attestations yet.</li> : null}
             </ul>
           </section>
-          <section className="space-y-3">
-            <h2 className="text-xl font-semibold">Outbound ({data.outbound.length})</h2>
-            <p className="text-sm text-muted-foreground">
-              Cubid IDs you&apos;ve vouched for as {walletAddress ?? "your wallet"}.
-            </p>
-            <ul className="space-y-3">
-              {data.outbound.map((attn) => (
-                <li key={`${attn.cubidId}-${attn.uid}`} className="rounded border border-neutral-200 p-3 shadow-sm dark:border-neutral-800">
-                  <p className="font-medium">{attn.cubidId}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Trust level {attn.trustLevel} · {attn.circle ?? "no circle"} · {formatFreshness(attn.freshnessSeconds)}
-                  </p>
-                </li>
+
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Outbound ({data.outbound.length})</h2>
+              <p className="text-sm text-muted-foreground">
+                Credentials you&apos;ve issued as {walletAddress ?? profile?.evm_address} grouped by circle.
+              </p>
+            </div>
+            {groupedByCircle.length === 0 ? (
+              <p className="text-sm text-muted-foreground">You haven&apos;t issued any credentials yet.</p>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2">
+              {groupedByCircle.map((group) => (
+                <section key={group.circle ?? "uncategorised"} className="space-y-3 rounded border border-neutral-200 p-4 shadow-sm dark:border-neutral-800">
+                  <header className="space-y-1">
+                    <h3 className="text-lg font-semibold">{group.circle ?? "No circle tag"}</h3>
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{group.items.length} credential{group.items.length === 1 ? "" : "s"}</p>
+                  </header>
+                  <ul className="space-y-3">
+                    {group.items.map((attn) => (
+                      <li key={`${attn.cubidId}-${attn.uid}`} className="rounded border border-neutral-200 p-3 shadow-sm dark:border-neutral-800">
+                        <p className="font-medium">{attn.cubidId}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Trust level {attn.trustLevel} · {formatFreshness(attn.freshnessSeconds)} · Issued {new Date(attn.issuedAt * 1000).toLocaleString()}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-              {data.outbound.length === 0 ? <li className="text-sm text-muted-foreground">No outbound vouches yet.</li> : null}
-            </ul>
+            </div>
           </section>
         </div>
       ) : null}

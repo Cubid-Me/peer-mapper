@@ -1,6 +1,7 @@
 "use client";
 
 import Badge from "@/components/Badge";
+import { useRequireCompletedOnboarding } from "@/lib/onboarding";
 import { useScanStore } from "@/lib/scanStore";
 
 function formatFreshness(seconds: number): string {
@@ -11,7 +12,17 @@ function formatFreshness(seconds: number): string {
 }
 
 export default function ResultsPage() {
+  const { ready } = useRequireCompletedOnboarding();
   const result = useScanStore((state) => state.lastResult);
+
+  if (!ready) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Loading overlaps…</h1>
+        <p className="text-sm text-muted-foreground">Confirming your session before showing shared issuers.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-4">

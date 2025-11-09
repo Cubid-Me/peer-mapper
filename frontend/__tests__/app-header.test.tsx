@@ -32,7 +32,9 @@ describe("AppHeader", () => {
     act(() => {
       useUserStore.setState({
         session,
-        user: { user_id: "1", display_name: "Sky Trail", cubid_id: "sky" },
+        user: { user_id: "1", display_name: "Sky Trail", cubid_id: "sky", evm_address: "0x123" },
+        walletAddress: null,
+        initialised: true,
       });
     });
 
@@ -42,6 +44,7 @@ describe("AppHeader", () => {
     expect(screen.getByRole("link", { name: /My QR code/i })).toHaveAttribute("href", "/scan/my-qr");
     expect(screen.getByRole("link", { name: /Camera/i })).toHaveAttribute("href", "/scan/camera");
     expect(screen.getByRole("link", { name: /My Circle/i })).toHaveAttribute("href", "/circle");
+    expect(screen.getByRole("link", { name: /Indexer/i })).toHaveAttribute("href", "/indexer");
     expect(screen.getByText("Sky Trail")).toBeInTheDocument();
     expect(screen.getByText("ST")).toBeInTheDocument();
   });

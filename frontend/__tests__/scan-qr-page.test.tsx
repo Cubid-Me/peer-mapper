@@ -16,6 +16,7 @@ const { pushMock, subscribeToHandshakeMock, randomUuidMock } = vi.hoisted(() => 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: vi.fn(),
   }),
 }));
 
@@ -48,7 +49,10 @@ describe("MyQrPage", () => {
         user_id: "user-1",
         cubid_id: "cubid_me",
         display_name: "Casey Rivers",
+        evm_address: "0x123",
       },
+      walletAddress: null,
+      initialised: true,
     });
   });
 

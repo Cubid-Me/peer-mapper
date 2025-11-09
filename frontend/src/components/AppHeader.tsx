@@ -52,6 +52,9 @@ export function AppHeader() {
           <Link className="transition hover:text-sky-300" href="/circle">
             My Circle
           </Link>
+          <Link className="transition hover:text-sky-300" href="/indexer">
+            Indexer
+          </Link>
         </nav>
 
         <Link className="group flex items-center gap-3" href="/profile">

@@ -36,7 +36,10 @@ describe("ProfilePage", () => {
           cubid_id: "cubid_me",
           display_name: "Maple Leaf",
           photo_url: "https://example.com/photo.png",
+          evm_address: "0x123",
         },
+        walletAddress: null,
+        initialised: true,
       });
     });
   });
@@ -52,6 +55,7 @@ describe("ProfilePage", () => {
 
     expect(screen.getByText(/This name can be a nickname/i)).toBeInTheDocument();
     expect(screen.getByText(/Maple Leaf/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect wallet/i })).toBeInTheDocument();
 
     const previewHeading = screen.getByRole("heading", { name: /Preview for peers/i });
     const previewAside = previewHeading.closest("aside");

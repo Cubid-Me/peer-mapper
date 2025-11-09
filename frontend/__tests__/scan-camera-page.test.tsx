@@ -26,6 +26,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: vi.fn(),
   }),
 }));
 
@@ -72,8 +73,14 @@ describe("CameraPage", () => {
 
     useUserStore.setState({
       session,
-      user: { user_id: session.user.id, cubid_id: "cubid_me" },
+      user: {
+        user_id: session.user.id,
+        cubid_id: "cubid_me",
+        display_name: "Maple",
+        evm_address: "0xViewer",
+      },
       walletAddress: null,
+      initialised: true,
     });
 
     getUserMediaMock.mockResolvedValue({

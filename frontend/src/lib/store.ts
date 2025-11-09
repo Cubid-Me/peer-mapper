@@ -13,9 +13,11 @@ type UserState = {
   session: Session | null;
   user: UserProfile | null;
   walletAddress: string | null;
+  initialised: boolean;
   setSession: (session: Session | null) => void;
   setUser: (user: UserProfile | null) => void;
   setWalletAddress: (address: string | null) => void;
+  setInitialised: (value: boolean) => void;
   reset: () => void;
 };
 
@@ -23,8 +25,10 @@ export const useUserStore = create<UserState>((set) => ({
   session: null,
   user: null,
   walletAddress: null,
+  initialised: false,
   setSession: (session) => set({ session }),
   setUser: (user) => set({ user }),
   setWalletAddress: (walletAddress) => set({ walletAddress }),
-  reset: () => set({ session: null, user: null, walletAddress: null }),
+  setInitialised: (value) => set({ initialised: value }),
+  reset: () => set({ session: null, user: null, walletAddress: null, initialised: false }),
 }));
