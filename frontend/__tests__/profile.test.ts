@@ -24,12 +24,12 @@ const {
 }));
 
 vi.mock("../src/lib/supabaseClient", () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     auth: {
       getUser: getUserMock,
     },
     from: fromMock,
-  },
+  }),
 }));
 
 describe("profile service", () => {

@@ -279,26 +279,15 @@ All payments handled in **FeeGate** (treasury = contract balance). Treasury with
 
 ---
 
-## 8) Deployment Plan (1–2 days)
+## 8) Deployment & CI/CD Posture
 
-1. **Contracts**
-   - Deploy `SchemaRegistry` and `EAS` (Moonbeam).
-   - Deploy `FeeGate` with pointers to `EAS` + `schemaUID`.
-   - Register `CubidTrust` schema in `SchemaRegistry` with `resolver = FeeGate`.
-   - Verify contracts on Moonscan.
-
-2. **Indexer**
-   - Configure to listen for `EAS.Attested`/`Revoked` for `schemaUID`.
-   - Build `attestations_latest` table; expose REST.
-
-3. **Frontend**
-   - Wire Cubid SDK, Nova/EVM connect.
-   - Implement Vouch (prepare → sign → relay), QR (challenge), Results.
-
-4. **Dry-run**
-   - Seed 2–3 demo issuers, vouch for 3–4 `cubidId`s.
-   - Validate 3rd-attestation fee path.
-   - Live demo: QR scan + overlap render.
+- **Contracts:** Foundry scripts (`DeployEAS.s.sol`, `RegisterSchema.s.sol`, `DeployFeeGate.s.sol`) broadcast to Moonbeam mainnet using `PRIVATE_KEY_DEPLOYER`. Use `--verify` with `MOONSCAN_API_KEY` so source is published automatically. Record the resulting SchemaRegistry, EAS, FeeGate, and schema UID in `addresses.json` and `agent-context/eas-addresses.md` after every deploy.
+- **Moonscan verification:** Store the verification permalinks (e.g., `https://moonscan.io/address/<addr>#code`) alongside the addresses and reference them in `agent-context/deployment.md`.
+- **Indexer:** Dockerised via `indexer/Dockerfile` (Node 22 + pnpm). Deploy on Fly.io (`fly deploy --dockerfile indexer/Dockerfile`) with secrets for RPC, Supabase, and contract identifiers. `/healthz` exposes readiness for uptime checks. Alternative hosts (Render) follow the same container image.
+- **Frontend:** Hosted on Vercel. Build command `pnpm --filter frontend build`, install `pnpm install`, output `.next`. Runtime env vars include `NEXT_PUBLIC_INDEXER_URL`, `NEXT_PUBLIC_EAS_ADDR`, `NEXT_PUBLIC_FEEGATE_ADDR`, `NEXT_PUBLIC_SCHEMA_UID`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_CHAIN_ID=1284`.
+- **Quality gate:** Before promoting changes run `pnpm lint`, `pnpm --filter frontend build`, `pnpm --filter indexer build`, `pnpm --filter frontend test`, `pnpm --filter indexer test`, and `pnpm test`. CI enforces the same sequence.
+- **CI:** `.github/workflows/ci.yml` sets up Node 22, pnpm, and Foundry, installs dependencies, then runs the lint/build/test matrix across contracts, indexer, and frontend.
+- **Release log:** Update `agent-context/deployment.md`, session logs, and `addresses.json` with URLs, block numbers, and hashes per release.
 
 ---
 
