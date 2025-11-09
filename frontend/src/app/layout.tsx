@@ -1,18 +1,10 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { AuthProvider } from "../components/AuthProvider";
+import { UserSessionSummary } from "../components/UserSessionSummary";
 
 export const metadata: Metadata = {
   title: "Peer Mapper",
@@ -26,10 +18,15 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className="antialiased">
+        <AuthProvider>
+          <header className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="mx-auto max-w-5xl px-6 py-4">
+              <UserSessionSummary />
+            </div>
+          </header>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@ import { encodeAbiParameters, Hex } from 'viem';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { IndexerDatabase } from '../src/db';
-import { env } from '../src/env';
+import { refreshEnv } from '../src/env';
 import { decodeAttestationData, processAttested, processRevoked } from '../src/listener';
 
 const schemaFields = [
@@ -19,13 +19,16 @@ describe('listener helpers', () => {
   let db: IndexerDatabase;
 
   beforeEach(() => {
-    env.schemaUid = '0x1234';
+    process.env.SCHEMA_UID = '0x1234';
+    refreshEnv();
     db = new IndexerDatabase(':memory:');
     db.migrate();
   });
 
   afterEach(() => {
     db.close();
+    delete process.env.SCHEMA_UID;
+    refreshEnv();
   });
 
   it('decodes attestation payloads', () => {

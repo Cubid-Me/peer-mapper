@@ -2,7 +2,7 @@
 
 Below is a lean, end-to-end blueprint designed to build and ship in 1–2 days during a hackathon. It covers contracts, events, a tiny relayer/indexer, REST APIs, data schemas, and the minimal UI flow required to demo QR-based mutual-friend reveal using **Cubid app-scoped IDs** and **Moonbeam (EVM)**.
 
-Peer-mapper is a lightweight nextjs app which allows people to establish trusted relationships, and view common friends who also trust each other. The aim in the hackathon is to build a crisp, demo-ready MVP flow with on-chain attestations, a relayed signature path, QR in-person handshake, and mutual-friend reveal—with privacy preserved via Cubid app-scoped IDs.
+Peer-mapper is a lightweight nextjs app which allows people to establish trusted relationships, and view common friends who also trust each other. The aim in the hackathon is to build a crisp, demo-ready MVP flow with on-chain attestations, a relayed signature path, QR in-person handshake, and mutual-friend reveal—with privacy preserved via Cubid app-scoped IDs. Application sessions are backed by Supabase Auth so both the frontend and indexer can trust a shared, RLS-protected `public.users` profile table for minimal metadata (display name, photo, Cubid ID, wallet).
 
 The implementation relies on **first deploying EAS** (Ethereum Attestation Service) and then building the app around it.
 
@@ -116,6 +116,7 @@ FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so t
 - **Attestations are directional.**
 - **Revocation:** set `trustLevel = NoOpinion` (or explicit EAS revoke) to neutralize a prior vouch.
 - **Persona privacy:** Users may create multiple Cubid-IDs (personas). Untraceability is achieved by not reusing the same Cubid-ID across contexts.
+- **Supabase session store:** Supabase Auth issues sessions. The `public.users` table mirrors Supabase `auth.users.id` in `user_id`, and stores optional `cubid_id`, `display_name`, `photo_url`, and `evm_address`. A trigger keeps `updated_at` current, and RLS policies (`users_self_select`, `users_self_upsert`, `users_self_update`) restrict profile access to the authenticated user while the service role retains full control for trusted backend jobs.
 
 ---
 
@@ -128,6 +129,7 @@ FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so t
 - Serve PSI-lite overlap results for QR handshakes.
 - Issue and validate **short-lived QR challenges** (anti-replay).
 - Apply rate limits.
+- Validate Supabase JWTs on QR/PSI endpoints using `SUPABASE_JWT_SECRET`, surfacing the authenticated `userId` to route handlers.
 
 ### 3.2 Storage (Postgres or SQLite)
 
@@ -146,11 +148,13 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 - `POST /attest/prepare` → Returns EIP-712 typed data (domain: FeeGate) with `nonce` & `deadline`.
 - `POST /attest/relay` → Relays signature + optional `value` (if it’s the 3rd attestation) to FeeGate.
 - `GET /profile/:cubidId` → Inbound latest attestations for that Cubid-ID.
-- `GET /qr/challenge` → `{ challengeId, challenge, expiresAt, issuedFor }` (valid ~90 s, stored in `qr_challenges`).
+- `GET /qr/challenge` → `{ challengeId, challenge, expiresAt, issuedFor }` (valid ~90 s, stored in `qr_challenges`). Requires Supabase `Authorization: Bearer <access_token>`.
 - `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both with `viem.verifyMessage`, marks the challenge as used, then:
   - `POST /psi/intersection` (internal): compute overlaps with policy below.
+- `POST /psi/intersection` → Internal helper guarded by the same Supabase auth middleware.
 
 - **Rate-limits:** `RateLimiterMemory` enforces **2 req/s** and **100/day** per IP globally (429 on exceed).
+- **Authentication:** When `SUPABASE_JWT_SECRET` is configured the middleware rejects missing/invalid tokens with `401` before hitting route logic.
 - **Caching:** Intersection results cached for **120 s** per `(viewer|target)` pair via in-memory LRU to cut duplicate load.
 
 ### 3.4 Overlap Policy (asymmetric allowed)
@@ -173,7 +177,7 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 ### Screens
 
-1. **Sign-In**: Email → Cubid → get `cubidId`; Connect Nova/EVM wallet.
+1. **Sign-In**: Supabase magic link (email) → fetch/set `public.users` profile (Cubid ID, display name, photo) → Connect Nova/EVM wallet and persist address.
 2. **My Circle**: View inbound/outbound latest attestations; search by `cubidId`.
 3. **Vouch**:
    - Pick `cubidId`, choose `trustLevel`, `human`, `circle`, `expiry`.
@@ -186,6 +190,12 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 5. **Results**:
    - Show overlapping trusted issuers re: counterparty, with badges for trust level, circle, and freshness.
+
+### State & Auth
+
+- `frontend/src/components/AuthProvider.tsx` subscribes to Supabase session changes, bootstraps the current session on load, and hydrates the shared `useUserStore` Zustand store.
+- `useUserStore` holds `{ session, user, walletAddress }` so headers and feature routes can render consistent identity state.
+- Profile writes go through Supabase RPC (`users` table upsert) ensuring the indexer can associate API calls with `auth.uid()`.
 
 **QR Security**
 

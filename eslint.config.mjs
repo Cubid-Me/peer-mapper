@@ -16,6 +16,7 @@ export default [
     ignores: [
       "node_modules",
       "dist",
+      "indexer/dist",
       ".next",
       "frontend/.next",
       "frontend/out",

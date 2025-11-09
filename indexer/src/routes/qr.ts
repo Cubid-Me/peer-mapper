@@ -5,9 +5,12 @@ import { verifyMessage } from 'viem';
 import { z } from 'zod';
 
 import { getDatabase } from '../db';
+import { requireAuth } from '../mw/requireAuth';
 import { computeOverlap } from '../services/overlap';
 
 const router = Router();
+
+router.use(requireAuth());
 
 const verifyRequestSchema = z.object({
   challengeId: z.string().min(1),
