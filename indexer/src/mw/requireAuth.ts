@@ -34,7 +34,7 @@ export function requireAuth(logger: pino.Logger = pino({ name: 'require-auth' })
 
     try {
       const payload = jwt.verify(token, jwtSecret) as jwt.JwtPayload;
-      const userId = typeof payload.sub === 'string' ? payload.sub : typeof payload.user_id === 'string' ? payload.user_id : null;
+      const userId = extractUserId(payload);
       if (!userId) {
         res.status(401).json({ error: 'unauthorized' });
         return;
@@ -46,6 +46,18 @@ export function requireAuth(logger: pino.Logger = pino({ name: 'require-auth' })
       res.status(401).json({ error: 'unauthorized' });
     }
   };
+}
+
+function extractUserId(payload: jwt.JwtPayload): string | null {
+  if (typeof payload.sub === 'string' && payload.sub.length > 0) {
+    return payload.sub;
+  }
+
+  if (typeof payload.user_id === 'string' && payload.user_id.length > 0) {
+    return payload.user_id;
+  }
+
+  return null;
 }
 
 function extractToken(req: Request): string | null {

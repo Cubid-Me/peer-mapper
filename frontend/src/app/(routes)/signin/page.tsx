@@ -164,7 +164,7 @@ export default function SignInPage() {
               onClick={handleConnectWallet}
               type="button"
             >
-              Link wallet &amp; store address
+              Link wallet & store address
             </button>
           </div>
         </fieldset>
