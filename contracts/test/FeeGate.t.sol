@@ -19,6 +19,8 @@ contract FeeGateTest is Test {
     address public issuer = vm.addr(ISSUER_KEY);
     address public recipient = address(0xBEEF);
 
+    receive() external payable {}
+
     string constant SCHEMA =
         'string cubidId,uint8 trustLevel,bool human,bytes32 circle,uint64 issuedAt,uint64 expiry,uint256 nonce';
 
@@ -113,13 +115,13 @@ contract FeeGateTest is Test {
         vm.stopPrank();
 
         vm.startPrank(issuer);
-        bytes32 uid = feeGate.attestDirect{value: feeGate.LIFETIME_FEE()}(_payload('cubidC', 6));
+        bytes32 uid = feeGate.attestDirect{value: feeGate.lifetimeFee()}(_payload('cubidC', 6));
         vm.stopPrank();
 
         assertEq(feeGate.attestCount(issuer), 3);
         assertTrue(feeGate.hasPaidFee(issuer));
         assertEq(feeGate.getLastUID(issuer, 'cubidC'), uid);
-        assertEq(address(feeGate).balance, feeGate.LIFETIME_FEE());
+        assertEq(address(feeGate).balance, feeGate.lifetimeFee());
 
         // fourth attestation requires no additional fee
         AttestationPayload memory payloadFourth = _payload('cubidD', 7);
@@ -136,7 +138,7 @@ contract FeeGateTest is Test {
 
         assertEq(feeGate.attestCount(issuer), 4);
         assertTrue(feeGate.hasPaidFee(issuer));
-        assertEq(address(feeGate).balance, feeGate.LIFETIME_FEE());
+        assertEq(address(feeGate).balance, feeGate.lifetimeFee());
     }
 
     function testInsufficientFeeDelegatedReverts() public {
@@ -167,6 +169,68 @@ contract FeeGateTest is Test {
         bytes32 latestUID = feeGate.attestDelegated(payload, issuer, nonce, deadline, signature);
 
         assertEq(feeGate.getLastUID(issuer, 'cubidX'), latestUID);
+    }
+
+    function testSetLifetimeFeeByDeployer() public {
+        uint256 oldFee = feeGate.lifetimeFee();
+        assertEq(oldFee, 100 ether);
+
+        uint256 newFee = 50 ether;
+        feeGate.setLifetimeFee(newFee);
+
+        assertEq(feeGate.lifetimeFee(), newFee);
+
+        // Verify new fee is enforced
+        vm.startPrank(issuer);
+        feeGate.attestDirect(_payload('cubid1', 5));
+        feeGate.attestDirect(_payload('cubid2', 5));
+
+        // Third attestation should now require the new fee amount
+        vm.expectRevert(FeeGate.InsufficientFee.selector);
+        feeGate.attestDirect{value: oldFee}(_payload('cubid3', 6));
+
+        // Should succeed with new fee
+        feeGate.attestDirect{value: newFee}(_payload('cubid3', 6));
+        vm.stopPrank();
+
+        assertTrue(feeGate.hasPaidFee(issuer));
+        assertEq(address(feeGate).balance, newFee);
+    }
+
+    function testSetLifetimeFeeRevertsForNonDeployer() public {
+        vm.prank(issuer);
+        vm.expectRevert(FeeGate.OnlyDeployer.selector);
+        feeGate.setLifetimeFee(50 ether);
+    }
+
+    function testSetLifetimeFeeRevertsForZero() public {
+        vm.expectRevert(FeeGate.InvalidFee.selector);
+        feeGate.setLifetimeFee(0);
+    }
+
+    function testWithdrawByDeployer() public {
+        // Setup: get issuer to pay fee
+        vm.startPrank(issuer);
+        feeGate.attestDirect(_payload('cubid1', 5));
+        feeGate.attestDirect(_payload('cubid2', 5));
+        feeGate.attestDirect{value: feeGate.lifetimeFee()}(_payload('cubid3', 6));
+        vm.stopPrank();
+
+        uint256 contractBalance = address(feeGate).balance;
+        assertEq(contractBalance, 100 ether);
+
+        uint256 deployerBalanceBefore = address(this).balance;
+        feeGate.withdraw();
+        uint256 deployerBalanceAfter = address(this).balance;
+
+        assertEq(address(feeGate).balance, 0);
+        assertEq(deployerBalanceAfter - deployerBalanceBefore, contractBalance);
+    }
+
+    function testWithdrawRevertsForNonDeployer() public {
+        vm.prank(issuer);
+        vm.expectRevert(FeeGate.OnlyDeployer.selector);
+        feeGate.withdraw();
     }
 
     function _payload(

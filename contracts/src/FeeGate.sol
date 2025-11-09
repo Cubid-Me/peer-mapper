@@ -36,8 +36,10 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
     using ECDSA for bytes32;
 
     // Constants
-    uint256 public constant LIFETIME_FEE = 100 ether; // 100 GLMR
     uint256 public constant FEE_THRESHOLD = 3; // Fee charged on 3rd attestation
+
+    // Mutable state
+    uint256 public lifetimeFee = 100 ether; // 100 GLMR (can be updated by deployer)
     bytes32 public constant ATTESTATION_TYPEHASH =
         keccak256(
             'Attestation(address issuer,address recipient,bytes32 refUID,bool revocable,uint64 expirationTime,'
@@ -48,6 +50,7 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
     // Immutable state
     IEAS public immutable eas;
     bytes32 public immutable schemaUID;
+    address public immutable deployer;
 
     // Per-issuer state
     mapping(address => uint256) public attestCount;
@@ -62,6 +65,7 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
     event FeeCharged(address indexed issuer, uint256 amount, uint256 count);
     event NonceIncremented(address indexed issuer, uint256 newNonce);
     event LastUIDAnchorSet(address indexed issuer, string cubidId, bytes32 uid);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
 
     // Errors
     error InvalidNonce();
@@ -73,6 +77,9 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
     error InvalidRecipient();
     error InvalidIssuer();
     error NotImplemented();
+    error OnlyDeployer();
+    error WithdrawalFailed();
+    error InvalidFee();
 
     /**
      * @param _eas Address of the EAS contract
@@ -82,6 +89,7 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
         if (address(_eas) == address(0)) revert InvalidEAS();
         eas = _eas;
         schemaUID = _schemaUID;
+        deployer = msg.sender;
     }
 
     /**
@@ -290,6 +298,32 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
         return '1.0.0';
     }
 
+    /**
+     * @notice Withdraw all accumulated fees to the deployer
+     * @dev Only callable by the deployer address
+     */
+    function withdraw() external nonReentrant {
+        if (msg.sender != deployer) revert OnlyDeployer();
+
+        uint256 balance = address(this).balance;
+        (bool success, ) = deployer.call{value: balance}('');
+        if (!success) revert WithdrawalFailed();
+    }
+
+    /**
+     * @notice Update the lifetime fee amount
+     * @dev Only callable by the deployer address
+     * @param newFee The new lifetime fee amount in wei
+     */
+    function setLifetimeFee(uint256 newFee) external {
+        if (msg.sender != deployer) revert OnlyDeployer();
+        if (newFee == 0) revert InvalidFee();
+
+        uint256 oldFee = lifetimeFee;
+        lifetimeFee = newFee;
+        emit FeeUpdated(oldFee, newFee);
+    }
+
     receive() external payable {}
 
     // Internal helpers
@@ -327,7 +361,7 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
             if (newCount < FEE_THRESHOLD) {
                 if (supplied != 0) revert UnexpectedValue();
             } else if (newCount == FEE_THRESHOLD) {
-                if (supplied != LIFETIME_FEE) revert InsufficientFee();
+                if (supplied != lifetimeFee) revert InsufficientFee();
             } else {
                 revert InsufficientFee();
             }
@@ -346,7 +380,7 @@ contract FeeGate is ISchemaResolver, EIP712, ReentrancyGuard {
         bool paid = lifetimeFeePaid[issuer];
         if (!paid && newCount == FEE_THRESHOLD) {
             lifetimeFeePaid[issuer] = true;
-            emit FeeCharged(issuer, LIFETIME_FEE, newCount);
+            emit FeeCharged(issuer, lifetimeFee, newCount);
         }
     }
 }
