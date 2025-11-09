@@ -10,13 +10,13 @@ describe("App navigation", () => {
     const links = screen.getAllByRole("link");
     const hrefs = links.map((link) => link.getAttribute("href"));
     expect(hrefs).toEqual([
-      "/(routes)/signin",
-      "/(routes)/new-user",
-      "/(routes)/circle",
-      "/(routes)/profile",
-      "/(routes)/vouch",
-      "/(routes)/scan",
-      "/(routes)/results",
+      "/signin",
+      "/new-user",
+      "/circle",
+      "/profile",
+      "/vouch",
+      "/scan",
+      "/results",
     ]);
   });
 });

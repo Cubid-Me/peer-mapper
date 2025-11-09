@@ -92,7 +92,7 @@ export default function NewUserPage() {
       });
       setUser(updated);
       setStatus("Profile saved");
-      router.push("/(routes)/circle");
+      router.push("/circle");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to save profile";
       setError(message);

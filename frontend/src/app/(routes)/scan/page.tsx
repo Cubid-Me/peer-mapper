@@ -171,7 +171,7 @@ export default function ScanPage() {
         verifiedAt: Date.now(),
       });
       setStatus("Overlap ready");
-      router.push("/(routes)/results");
+      router.push("/results");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to verify challenge";
       setError(message);
