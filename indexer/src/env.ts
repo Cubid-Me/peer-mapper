@@ -10,6 +10,10 @@ const envSchema = z.object({
   SCHEMA_UID: z.string().min(1).default('0x0'),
   FEEGATE_ADDR: z.string().min(1).default('0x0'),
   MOONBEAM_RPC: z.string().min(1).optional(),
+  PRIVATE_KEY_RELAYER: z
+    .string()
+    .regex(/^0x[0-9a-fA-F]{64}$/)
+    .optional(),
   RATE_LIMIT_RPS: z.coerce.number().int().positive().optional(),
   RATE_LIMIT_DAILY: z.coerce.number().int().positive().optional(),
   SUPABASE_URL: z.string().url().optional(),
@@ -24,6 +28,7 @@ export type EnvValues = {
   schemaUid: string;
   feeGateAddress: string;
   rpcUrl?: string;
+  relayerPrivateKey?: `0x${string}`;
   rateLimitPerSecond: number;
   rateLimitDaily: number;
   supabase: {
@@ -51,6 +56,7 @@ function parseEnv(): EnvValues {
     schemaUid: values.SCHEMA_UID,
     feeGateAddress: values.FEEGATE_ADDR,
     rpcUrl: values.MOONBEAM_RPC,
+    relayerPrivateKey: values.PRIVATE_KEY_RELAYER as `0x${string}` | undefined,
     rateLimitPerSecond: values.RATE_LIMIT_RPS ?? 2,
     rateLimitDaily: values.RATE_LIMIT_DAILY ?? 100,
     supabase: {

@@ -137,14 +137,14 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ## 6. API Endpoints (Functional Behavior)
 
-| Endpoint                | Method | Description                                                                                    |
-| ----------------------- | ------ | ---------------------------------------------------------------------------------------------- |
-| `/api/attest/prepare`   | GET    | Returns EIP-712 message to sign for given attestation input                                    |
-| `/api/attest/relay`     | POST   | Submits signed data to FeeGate and relays tx                                                   |
-| `/api/profile/:cubidId` | GET    | Lists inbound/outbound attestations for a Cubid ID                                             |
-| `/api/qr/challenge`     | GET    | Issues one-time challenge for QR handshake (requires Supabase `Authorization` header)          |
-| `/api/qr/verify`        | POST   | Validates challenge signatures and returns overlaps (requires Supabase `Authorization` header) |
-| `/api/overlaps`         | POST   | (Optional) Computes overlaps directly between two Cubid IDs                                    |
+| Endpoint                | Method | Description                                                         |
+| ----------------------- | ------ | ------------------------------------------------------------------- |
+| `/api/attest/prepare`   | POST   | Returns EIP-712 message to sign for given attestation input         |
+| `/api/attest/relay`     | POST   | Submits signed data to FeeGate and relays tx                        |
+| `/api/profile/:cubidId` | GET    | Lists inbound/outbound attestations for a Cubid ID                  |
+| `/api/qr/challenge`     | GET    | Issues one-time challenge for QR handshake (Supabase auth required) |
+| `/api/qr/verify`        | POST   | Validates challenge signatures and returns overlaps (Supabase auth) |
+| `/api/overlaps`         | POST   | (Optional) Computes overlaps directly between two Cubid IDs         |
 
 ---
 

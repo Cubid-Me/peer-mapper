@@ -9,10 +9,11 @@
     "format": "prettier --write .",
     "test": "cd contracts && forge test -vv",
     "test:all": "pnpm --filter frontend --if-present run test && pnpm --filter indexer --if-present run test && pnpm test",
+    "build": "cd contracts && forge build",
+    "build:all": "pnpm --filter indexer --if-present run build && pnpm build",
     "env:sync": "node scripts/env-sync.ts",
     "spec:lint": "echo \"spec lint placeholder\"",
     "coverage": "bash scripts/forge-coverage.sh",
-    "build": "cd contracts && forge build",
     "prepare": "husky install"
   },
   "lint-staged": {

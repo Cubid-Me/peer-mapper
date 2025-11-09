@@ -2,8 +2,8 @@
 
 | Route               | Method | Description                                                          | Status |
 | ------------------- | ------ | -------------------------------------------------------------------- | ------ |
-| `/attest/prepare`   | POST   | Returns EIP-712 payload + FeeGate nonce                              | stub   |
-| `/attest/relay`     | POST   | Relays signed payload to FeeGate                                     | stub   |
+| `/attest/prepare`   | POST   | Returns EIP-712 payload + FeeGate nonce                              | ready  |
+| `/attest/relay`     | POST   | Relays signed payload to FeeGate                                     | ready  |
 | `/profile/:cubidId` | GET    | Latest inbound attestations                                          | stub   |
 | `/qr/challenge`     | GET    | Issues short-lived handshake tokens (Supabase auth required)         | stub   |
 | `/qr/verify`        | POST   | Validates both signatures then triggers PSI (Supabase auth required) | stub   |
