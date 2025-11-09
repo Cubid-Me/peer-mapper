@@ -1,13 +1,13 @@
 import Link from "next/link";
 
 const LINKS = [
-  { href: "/(routes)/signin", label: "1. Sign in" },
-  { href: "/(routes)/new-user", label: "2. Onboard" },
-  { href: "/(routes)/circle", label: "3. My circle" },
-  { href: "/(routes)/profile", label: "4. Profile" },
-  { href: "/(routes)/vouch", label: "5. Vouch" },
-  { href: "/(routes)/scan", label: "6. Scan" },
-  { href: "/(routes)/results", label: "7. Results" },
+  { href: "/signin", label: "1. Sign in" },
+  { href: "/new-user", label: "2. Onboard" },
+  { href: "/circle", label: "3. My circle" },
+  { href: "/profile", label: "4. Profile" },
+  { href: "/vouch", label: "5. Vouch" },
+  { href: "/scan", label: "6. Scan" },
+  { href: "/results", label: "7. Results" },
 ];
 
 export default function Home() {

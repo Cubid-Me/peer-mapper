@@ -1,6 +1,5 @@
 # Node / pnpm
 node_modules/
-pnpm-lock.yaml
 .pnpm-store/
 
 # Env files
@@ -9,6 +8,8 @@ pnpm-lock.yaml
 .env.development.local
 .env.production.local
 .env.test.local
+!.env.example
+!**/.env.example
 
 # Logs
 logs/

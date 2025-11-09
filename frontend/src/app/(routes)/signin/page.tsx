@@ -21,7 +21,7 @@ export default function SignInPage() {
     }
 
     const missingProfile = !profile?.cubid_id || !profile?.display_name || !profile?.evm_address;
-    const destination = missingProfile ? "/(routes)/new-user" : "/(routes)/circle";
+    const destination = missingProfile ? "/new-user" : "/circle";
     router.push(destination);
   }, [profile, router, session]);
 

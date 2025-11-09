@@ -198,4 +198,15 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ---
 
+## 11. Deployment & Operations (Session 09)
+
+- **Release checklist:** Run the full quality gate (`pnpm lint`, builds, tests across workspaces) before promoting any commit.
+- **Contracts:** Broadcast via Foundry scripts with `--verify` and capture addresses + Moonscan links in `agent-context/eas-addresses.md`.
+- **Indexer:** Deploy the Docker image on Fly.io (or Render) and configure secrets for RPC endpoints, Supabase credentials, and contract IDs. `/healthz` is the primary readiness probe.
+- **Frontend:** Ship to Vercel with environment variables mirroring the production indexer + contract addresses. Preview deployments should use the same Supabase anon key to exercise auth.
+- **Documentation:** `agent-context/deployment.md` now records the full procedure and must be updated with URLs, transaction hashes, and release tags after each rollout.
+- **Incident response:** In case of failure, roll back via Vercel deployment promotion or `fly deploy --image <previous>` while keeping contract data immutable. Record remedial steps in the session log.
+
+---
+
 This **Functional Specification** expresses _what the system does_ from the user’s perspective — clean, behavioral, and outcome-driven — and should be kept fully consistent with your _Technical Specification_ that defines _how_ it’s done.

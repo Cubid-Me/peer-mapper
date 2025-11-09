@@ -136,7 +136,7 @@ describe("ScanPage", () => {
       ),
     );
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/(routes)/results"));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/results"));
 
     const result = useScanStore.getState().lastResult;
     expect(result?.targetCubid).toBe("cubid_peer");

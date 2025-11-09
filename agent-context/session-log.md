@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v12
+
+- 2025-11-09 — Session 09 (deployment & CI/CD readiness): Generated the workspace lockfile, replaced the placeholder CI with a full lint/build/test pipeline (Node 22 + pnpm + Foundry), authored a deployment playbook, enriched the technical and functional specs with release guidance, extended the EAS addresses ledger for Moonscan links, and logged the session artefacts.
+
 session: v11
 
 - 2025-11-08 — Session 08 (security & determinism polish): Enforced delegated deadline expiry in FeeGate, exposed the on-chain `getLastUID` anchor, taught the indexer listener to honour the anchor with exponential backoff on RPC fetches and basic Cubid length guards, expanded Vitest coverage for canonical anchors/DoS checks, and refreshed the specs + log.

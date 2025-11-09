@@ -2,19 +2,55 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-latest
+    env:
+      CI: true
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.18.3
+
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: CI placeholder
-        run: |
-          echo "CI scaffolded — implement env-sync, lint and tests."
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.4.3
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build frontend
+        run: pnpm --filter frontend build
+
+      - name: Build indexer
+        run: pnpm --filter indexer build
+
+      - name: Build contracts
+        run: pnpm --filter contracts build
+
+      - name: Test frontend
+        run: pnpm --filter frontend test
+
+      - name: Test indexer
+        run: pnpm --filter indexer test
+
+      - name: Test contracts
+        run: pnpm --filter contracts test

@@ -18,7 +18,7 @@ export function UserSessionSummary() {
     return (
       <div className="flex items-center justify-between rounded-md border border-dashed border-neutral-400 bg-neutral-100 px-3 py-2 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
         <span>No Supabase session</span>
-        <Link className="underline" href="/(routes)/signin">
+        <Link className="underline" href="/signin">
           Sign in
         </Link>
       </div>

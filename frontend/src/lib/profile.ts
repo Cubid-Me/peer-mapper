@@ -1,5 +1,5 @@
 import type { UserProfile } from "./store";
-import { supabase } from "./supabaseClient";
+import { getSupabaseClient } from "./supabaseClient";
 
 export async function upsertMyProfile(profile: {
   cubid_id?: string;
@@ -7,6 +7,7 @@ export async function upsertMyProfile(profile: {
   photo_url?: string;
   evm_address?: string;
 }): Promise<UserProfile> {
+  const supabase = getSupabaseClient();
   const {
     data: { user },
     error: sessionError,
@@ -32,6 +33,7 @@ export async function upsertMyProfile(profile: {
 }
 
 export async function fetchMyProfile(): Promise<UserProfile | null> {
+  const supabase = getSupabaseClient();
   const {
     data: { user },
     error: sessionError,
