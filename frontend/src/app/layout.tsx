@@ -3,8 +3,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AppFooter } from "../components/AppFooter";
+import { AppHeader } from "../components/AppHeader";
 import { AuthProvider } from "../components/AuthProvider";
-import { UserSessionSummary } from "../components/UserSessionSummary";
 
 export const metadata: Metadata = {
   title: "Peer Mapper",
@@ -20,12 +21,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en">
       <body className="antialiased">
         <AuthProvider>
-          <header className="border-b border-neutral-200 bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-950">
-            <div className="mx-auto max-w-5xl px-6 py-4">
-              <UserSessionSummary />
+          <div className="flex min-h-screen flex-col bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-blue-950/80">
+            <AppHeader />
+            <div className="flex-1 px-4 py-10 sm:px-8">
+              <div className="mx-auto w-full max-w-5xl">{children}</div>
             </div>
-          </header>
-          {children}
+            <AppFooter />
+          </div>
         </AuthProvider>
       </body>
     </html>
