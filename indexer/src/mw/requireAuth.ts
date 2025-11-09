@@ -52,11 +52,9 @@ function extractUserId(payload: jwt.JwtPayload): string | null {
   if (typeof payload.sub === 'string' && payload.sub.length > 0) {
     return payload.sub;
   }
-
   if (typeof payload.user_id === 'string' && payload.user_id.length > 0) {
     return payload.user_id;
   }
-
   return null;
 }
 

@@ -17,7 +17,6 @@
   "packageManager": "pnpm@10.18.3",
   "dependencies": {
     "@supabase/supabase-js": "^2.80.0",
-    "better-sqlite3": "^11.8.1",
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",
     "dotenv": "^17.2.3",
@@ -38,6 +37,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.24",
     "@types/supertest": "^6.0.3",
+    "better-sqlite3": "^12.4.1",
     "supertest": "^7.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
