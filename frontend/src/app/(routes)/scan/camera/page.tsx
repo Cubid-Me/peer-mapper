@@ -231,7 +231,7 @@ export default function CameraPage() {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-semibold">Preparing your scanner…</h1>
-        <p className="text-sm text-slate-300/80">We’re confirming your onboarding details.</p>
+        <p className="text-sm text-slate-300/80">We're confirming your onboarding details.</p>
       </section>
     );
   }
@@ -243,7 +243,7 @@ export default function CameraPage() {
         <h1 className="text-3xl font-semibold text-slate-50">Scan a peer and finish the handshake</h1>
         <p className="max-w-2xl text-sm text-slate-300/90">
           Point your camera at their Cubid QR or paste the JSON payload directly. Once both sides sign the temporary challenge,
-          we’ll surface the overlap from EAS.
+          we'll surface the overlap from EAS.
         </p>
       </header>
 

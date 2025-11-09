@@ -41,7 +41,7 @@ export default function NewUserPage() {
     }));
   }, [initialCubidId, profile?.cubid_id, profile?.display_name, profile?.photo_url]);
 
-  if (!ready && !profile?.cubid_id) {
+  if (!ready) {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-semibold">Loading your onboarding flow…</h1>

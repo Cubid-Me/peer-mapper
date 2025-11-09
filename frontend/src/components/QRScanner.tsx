@@ -118,7 +118,7 @@ export default function QRScanner({ onScan, onScanError }: QRScannerProps) {
         if (result?.data) {
           const now = Date.now();
           const recentlyDetected = now - lastDetectedAtRef.current < 1500;
-          if (result.data !== lastDetectedRef.current || !recentlyDetected) {
+          if (result.data !== lastDetectedRef.current || recentlyDetected) {
             lastDetectedRef.current = result.data;
             lastDetectedAtRef.current = now;
             onScan?.(result.data);

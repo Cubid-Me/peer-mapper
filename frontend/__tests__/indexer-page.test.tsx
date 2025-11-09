@@ -9,6 +9,9 @@ describe("Indexer page", () => {
 
     expect(screen.getByRole("heading", { name: /Moonbeam indexer/i })).toBeInTheDocument();
     const iframe = screen.getByTitle(/Moonbeam indexer/i);
-    expect(iframe).toHaveAttribute("src", "https://moonbeam.moonscan.io/");
+    expect(iframe).toHaveAttribute("src", "/api/indexer/moonscan");
+    expect(
+      screen.getByRole("link", { name: /Open Moonbeam indexer in a new tab/i }),
+    ).toHaveAttribute("href", "https://moonbeam.moonscan.io/");
   });
 });
