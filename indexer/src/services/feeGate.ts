@@ -1,9 +1,9 @@
 import {
   createPublicClient,
   createWalletClient,
+  hexToSignature,
   http,
   type PublicClient,
-  signatureToVRS,
   type TransactionReceipt,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -234,12 +234,13 @@ export async function relayDelegatedAttestation(args: RelayArgs): Promise<RelayR
   const walletClient = getWalletClientInstance();
   const publicClient = getPublicClientInstance();
 
-  const { r, s, v } = signatureToVRS(args.signature);
+  const { r, s, v } = hexToSignature(args.signature);
 
   const hash = await walletClient.writeContract({
     address: env.feeGateAddress,
     abi: FEE_GATE_ABI,
     functionName: 'attestDelegated',
+    chain: moonbeam,
     args: [
       {
         recipient: args.payload.recipient,
@@ -256,7 +257,7 @@ export async function relayDelegatedAttestation(args: RelayArgs): Promise<RelayR
       args.issuer,
       args.nonce,
       args.deadline,
-      { r, s, v },
+      { r, s, v: Number(v) },
     ],
     value: args.value,
     account: walletClient.account!,
