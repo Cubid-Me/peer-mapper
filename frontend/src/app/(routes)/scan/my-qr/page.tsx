@@ -9,6 +9,14 @@ import { subscribeToHandshake } from "@/lib/handshake";
 import { useScanStore } from "@/lib/scanStore";
 import { useUserStore } from "@/lib/store";
 
+function createHandshakeChannel(): string {
+  const globalCrypto = globalThis.crypto;
+  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+    return globalCrypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function MyQrPage() {
   const router = useRouter();
   const session = useUserStore((state) => state.session);
@@ -16,6 +24,7 @@ export default function MyQrPage() {
   const setResult = useScanStore((state) => state.setResult);
 
   const [timestamp, setTimestamp] = useState(() => Date.now());
+  const [handshakeChannel, setHandshakeChannel] = useState(createHandshakeChannel);
   const [handshakeMessage, setHandshakeMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,11 +33,12 @@ export default function MyQrPage() {
 
   useEffect(() => {
     setHandshakeMessage(null);
+    setHandshakeChannel(createHandshakeChannel());
   }, [timestamp]);
 
   const payload = useMemo(
-    () => ({ cubidId: profile?.cubid_id ?? "", ts: timestamp }),
-    [profile?.cubid_id, timestamp],
+    () => ({ cubidId: profile?.cubid_id ?? "", ts: timestamp, channel: handshakeChannel }),
+    [profile?.cubid_id, timestamp, handshakeChannel],
   );
 
   useEffect(() => {
@@ -36,23 +46,40 @@ export default function MyQrPage() {
       return undefined;
     }
 
-    const unsubscribe = subscribeToHandshake(profile.cubid_id, (payload) => {
-      setResult({
-        targetCubid: payload.targetCubid,
-        viewerCubid: payload.viewerCubid,
-        challengeId: payload.challengeId,
-        expiresAt: payload.expiresAt,
-        overlaps: payload.overlaps,
-        verifiedAt: Date.now(),
-      });
-      setHandshakeMessage("Handshake completed—opening shared overlaps…");
-      router.push("/results");
-    });
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      try {
+        unsubscribe = await subscribeToHandshake(handshakeChannel, (payload) => {
+          if (!active) {
+            return;
+          }
+          if (payload.targetCubid !== profile.cubid_id) {
+            return;
+          }
+          setResult({
+            targetCubid: payload.targetCubid,
+            viewerCubid: payload.viewerCubid,
+            challengeId: payload.challengeId,
+            expiresAt: payload.expiresAt,
+            overlaps: payload.overlaps,
+            verifiedAt: Date.now(),
+          });
+          setHandshakeMessage("Handshake completed—opening shared overlaps…");
+          router.push("/results");
+        });
+      } catch {
+        if (!active) return;
+        setHandshakeMessage("We couldn’t watch for handshake updates. Refresh and try again.");
+      }
+    })();
 
     return () => {
+      active = false;
       unsubscribe?.();
     };
-  }, [profile?.cubid_id, router, setResult]);
+  }, [handshakeChannel, profile?.cubid_id, router, setResult]);
 
   if (!session) {
     return (

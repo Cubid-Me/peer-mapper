@@ -98,6 +98,7 @@ describe("CameraPage", () => {
 
   it("completes the QR verification happy path", async () => {
     const user = userEvent.setup();
+    const handshakeChannel = "handshake-channel";
     const ethereum = (window as typeof window & {
       ethereum?: { request: ReturnType<typeof vi.fn> };
     }).ethereum;
@@ -132,7 +133,9 @@ describe("CameraPage", () => {
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     const targetAddress = "0x000000000000000000000000000000000000dEaD";
     fireEvent.change(payloadTextarea, {
-      target: { value: `{"cubidId":"cubid_peer","address":"${targetAddress}"}` },
+      target: {
+        value: `{"cubidId":"cubid_peer","channel":"${handshakeChannel}","address":"${targetAddress}"}`,
+      },
     });
 
     await user.click(screen.getByRole("button", { name: /parse qr payload/i }));
@@ -181,6 +184,7 @@ describe("CameraPage", () => {
 
     await waitFor(() =>
       expect(notifyHandshakeCompleteMock).toHaveBeenCalledWith({
+        channel: handshakeChannel,
         challengeId: "challenge-1",
         expiresAt: 1700001200,
         overlaps: [
@@ -209,7 +213,7 @@ describe("CameraPage", () => {
 
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     fireEvent.change(payloadTextarea, {
-      target: { value: '{"address":"0xPeer"}' },
+      target: { value: '{"address":"0xPeer","channel":"handshake"}' },
     });
 
     await user.click(screen.getByRole("button", { name: /parse qr payload/i }));

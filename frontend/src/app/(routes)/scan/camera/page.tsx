@@ -5,13 +5,14 @@ import { type FormEvent, useState } from "react";
 
 import QRScanner from "@/components/QRScanner";
 import { requestQrChallenge, verifyQrChallenge } from "@/lib/api";
-import { notifyHandshakeComplete } from "@/lib/handshake";
+import { type HandshakeCompletion, notifyHandshakeComplete } from "@/lib/handshake";
 import { useScanStore } from "@/lib/scanStore";
 import { useUserStore } from "@/lib/store";
 import { ensureWallet } from "@/lib/wallet";
 
 type ParsedQrPayload = {
   cubidId: string;
+  channel: string;
   address?: string;
 };
 
@@ -39,6 +40,9 @@ export default function CameraPage() {
     const payload = JSON.parse(rawQr) as ParsedQrPayload;
     if (!payload.cubidId) {
       throw new Error("QR payload missing cubidId");
+    }
+    if (!payload.channel) {
+      throw new Error("QR payload missing channel");
     }
     return payload;
   }
@@ -157,15 +161,23 @@ export default function CameraPage() {
         session.access_token,
       );
 
-      const completion = {
+      const completion: HandshakeCompletion = {
+        channel: parsed.channel,
         targetCubid: parsed.cubidId,
         viewerCubid: profile.cubid_id,
         challengeId: result.challengeId,
         expiresAt: result.expiresAt,
         overlaps: result.overlaps,
-      } as const;
+      };
 
-      setResult({ ...completion, verifiedAt: Date.now() });
+      setResult({
+        targetCubid: completion.targetCubid,
+        viewerCubid: completion.viewerCubid,
+        challengeId: completion.challengeId,
+        expiresAt: completion.expiresAt,
+        overlaps: completion.overlaps,
+        verifiedAt: Date.now(),
+      });
       setStatus("Sharing overlaps with your peer…");
 
       try {
@@ -220,7 +232,7 @@ export default function CameraPage() {
                 <textarea
                   className="w-full rounded-2xl border border-slate-700/60 bg-slate-950/60 p-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400/70 focus:outline-none"
                   rows={3}
-                  placeholder='Paste JSON like {"cubidId":"friend","address":"0x..."}'
+                  placeholder='Paste JSON like {"cubidId":"friend","channel":"uuid","address":"0x..."}'
                   value={rawQr}
                   onChange={(event) => setRawQr(event.target.value)}
                 />

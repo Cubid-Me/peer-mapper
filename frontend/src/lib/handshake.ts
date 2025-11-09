@@ -4,6 +4,7 @@ import type { VerifyQrResponse } from "./api";
 import { getSupabaseClient } from "./supabaseClient";
 
 export type HandshakeCompletion = {
+  channel: string;
   challengeId: string;
   expiresAt: number;
   overlaps: VerifyQrResponse["overlaps"];
@@ -28,7 +29,7 @@ async function ensureSubscribed(channel: RealtimeChannel): Promise<void> {
 
 export async function notifyHandshakeComplete(payload: HandshakeCompletion): Promise<void> {
   const supabase = getSupabaseClient();
-  const channel = supabase.channel(`${CHANNEL_PREFIX}${payload.targetCubid}`, {
+  const channel = supabase.channel(`${CHANNEL_PREFIX}${payload.channel}`, {
     config: { broadcast: { ack: true } },
   });
 
@@ -52,20 +53,25 @@ export async function notifyHandshakeComplete(payload: HandshakeCompletion): Pro
   }
 }
 
-export function subscribeToHandshake(
-  targetCubid: string,
+export async function subscribeToHandshake(
+  channelId: string,
   onComplete: (payload: HandshakeCompletion) => void,
-): () => void {
+): Promise<() => void> {
   const supabase = getSupabaseClient();
-  const channel = supabase.channel(`${CHANNEL_PREFIX}${targetCubid}`);
+  const channel = supabase.channel(`${CHANNEL_PREFIX}${channelId}`);
 
   channel.on("broadcast", { event: EVENT_NAME }, (event) => {
     const payload = event.payload as HandshakeCompletion | null;
-    if (!payload) return;
+    if (!payload || payload.channel !== channelId) return;
     onComplete(payload);
   });
 
-  channel.subscribe();
+  try {
+    await ensureSubscribed(channel);
+  } catch (error) {
+    await channel.unsubscribe();
+    throw error;
+  }
 
   return () => {
     void channel.unsubscribe();

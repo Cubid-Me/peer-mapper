@@ -7,9 +7,10 @@ import type { HandshakeCompletion } from "../src/lib/handshake";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
 
-const { pushMock, subscribeToHandshakeMock } = vi.hoisted(() => ({
+const { pushMock, subscribeToHandshakeMock, randomUuidMock } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   subscribeToHandshakeMock: vi.fn(),
+  randomUuidMock: vi.fn(() => "handshake-channel"),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -23,9 +24,18 @@ vi.mock("../src/lib/handshake", () => ({
 }));
 
 describe("MyQrPage", () => {
+  const originalCrypto = globalThis.crypto;
+
   beforeEach(() => {
     pushMock.mockReset();
     subscribeToHandshakeMock.mockReset();
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: {
+        ...originalCrypto,
+        randomUUID: randomUuidMock,
+      },
+    });
     act(() => {
       useUserStore.getState().reset();
       useScanStore.getState().reset();
@@ -44,14 +54,19 @@ describe("MyQrPage", () => {
 
   afterEach(() => {
     subscribeToHandshakeMock.mockReset();
+    randomUuidMock.mockClear();
+    Object.defineProperty(globalThis, "crypto", {
+      configurable: true,
+      value: originalCrypto,
+    });
   });
 
   it("renders the QR code and profile name", async () => {
-    subscribeToHandshakeMock.mockReturnValue(() => undefined);
+    subscribeToHandshakeMock.mockResolvedValue(() => undefined);
 
     render(<MyQrPage />);
 
-    await waitFor(() => expect(subscribeToHandshakeMock).toHaveBeenCalledWith("cubid_me", expect.any(Function)));
+    await waitFor(() => expect(subscribeToHandshakeMock).toHaveBeenCalledWith("handshake-channel", expect.any(Function)));
 
     expect(screen.getByRole("img", { name: /scan this within ninety seconds/i })).toBeInTheDocument();
     expect(screen.getByText("Casey Rivers")).toBeInTheDocument();
@@ -60,7 +75,7 @@ describe("MyQrPage", () => {
 
   it("redirects to results when a handshake completes", async () => {
     let handler: ((payload: HandshakeCompletion) => void) | null = null;
-    subscribeToHandshakeMock.mockImplementation((_cubid, callback) => {
+    subscribeToHandshakeMock.mockImplementation(async (_channel, callback) => {
       handler = callback;
       return vi.fn();
     });
@@ -70,6 +85,7 @@ describe("MyQrPage", () => {
     await waitFor(() => expect(handler).toBeInstanceOf(Function));
 
     const payload: HandshakeCompletion = {
+      channel: "handshake-channel",
       challengeId: "challenge-1",
       expiresAt: 1700001200,
       overlaps: [],
