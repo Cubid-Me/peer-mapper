@@ -84,3 +84,24 @@ No secrets should be committed—copy the relevant `.env.example` into `.env` lo
 - **Git hooks**: Husky + lint-staged ensure staged files pass lint/format before commit.
 
 For detailed specs and the multi-session delivery plan, read `agent-context/technical-spec.md` and `agent-context/agent-instructions.md`.
+
+---
+
+## Troubleshooting
+
+### Wallet Connection Issues
+
+If you see an error like `"Cannot redefine property: ethereum"`, this means you have multiple wallet browser extensions installed that are conflicting.
+
+**Quick fix**: Disable all wallet extensions except one (we recommend MetaMask for Moonbeam), then reload the page.
+
+For detailed solutions, see [docs/WALLET_TROUBLESHOOTING.md](docs/WALLET_TROUBLESHOOTING.md).
+
+### Network Configuration
+
+Moonbeam Mainnet:
+
+- **Chain ID**: 1284
+- **RPC URL**: https://rpc.api.moonbeam.network
+- **Currency**: GLMR
+- **Explorer**: https://moonscan.io
