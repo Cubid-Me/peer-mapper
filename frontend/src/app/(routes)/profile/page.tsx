@@ -1,7 +1,8 @@
 "use client";
+ 
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { upsertMyProfile } from "../../../lib/profile";
 import { useUserStore } from "../../../lib/store";
@@ -12,10 +13,23 @@ export default function ProfilePage() {
   const profile = useUserStore((state) => state.user);
   const setUser = useUserStore((state) => state.setUser);
 
-  const [displayName, setDisplayName] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
+  const [photoUrl, setPhotoUrl] = useState(profile?.photo_url ?? "");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  const photoPreviewUrl = useMemo(() => photoUrl || profile?.photo_url || "", [photoUrl, profile?.photo_url]);
+  const previewName = displayName || profile?.display_name || "Your chosen name";
+
+  useEffect(() => {
+    setDisplayName(profile?.display_name ?? "");
+    setPhotoUrl(profile?.photo_url ?? "");
+  }, [profile?.display_name, profile?.photo_url]);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [photoPreviewUrl]);
 
   useEffect(() => {
     if (!session) {
@@ -51,7 +65,9 @@ export default function ProfilePage() {
     <section className="space-y-6">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">My profile</h1>
-        <p className="text-muted-foreground">Review your Cubid ID and refresh your display information.</p>
+        <p className="text-muted-foreground">
+          This name can be a nickname. Your name, picture, and Cubid ID are what you share with anyone you invite to connect.
+        </p>
       </header>
 
       <div className="rounded border border-neutral-300 p-3 text-sm shadow-sm dark:border-neutral-800">
@@ -59,36 +75,75 @@ export default function ProfilePage() {
         <p>Wallet: {profile?.evm_address ?? "—"}</p>
       </div>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Display name
-          <input
-            value={displayName || profile?.display_name || ""}
-            onChange={(event) => setDisplayName(event.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
-            placeholder="Casey Mapper"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Photo URL
-          <input
-            value={photoUrl || profile?.photo_url || ""}
-            onChange={(event) => setPhotoUrl(event.target.value)}
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
-            placeholder="https://example.com/avatar.png"
-          />
-        </label>
-        <button
-          className="rounded bg-blue-600 px-4 py-2 text-white shadow-sm transition hover:bg-blue-500 disabled:opacity-60"
-          disabled={!session}
-          type="submit"
-        >
-          Save changes
-        </button>
-      </form>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            Display name
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
+              placeholder="Casey Rivers"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            Photo URL
+            <input
+              value={photoUrl}
+              onChange={(event) => setPhotoUrl(event.target.value)}
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
+              placeholder="https://example.com/avatar.png"
+            />
+          </label>
+          <button
+            className="rounded bg-blue-600 px-4 py-2 text-white shadow-sm transition hover:bg-blue-500 disabled:opacity-60"
+            disabled={!session}
+            type="submit"
+          >
+            Save changes
+          </button>
+          {status ? <p className="text-sm text-green-600 dark:text-green-400">{status}</p> : null}
+          {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        </form>
 
-      {status ? <p className="text-sm text-green-600 dark:text-green-400">{status}</p> : null}
-      {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        <aside className="space-y-4 rounded border border-neutral-300 p-4 text-sm shadow-sm dark:border-neutral-800">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold">Preview for peers</h2>
+            <p className="text-muted-foreground">
+              Here’s how your profile appears to someone you invite. Double-check the image link below before you share it.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {photoPreviewUrl && !imageError ? (
+              <span className="inline-flex h-24 w-24 overflow-hidden rounded-full border border-neutral-300 shadow-sm dark:border-neutral-700">
+                <img
+                  alt="Profile photo preview"
+                  className="h-full w-full object-cover"
+                  src={photoPreviewUrl}
+                  onError={() => setImageError(true)}
+                />
+              </span>
+            ) : (
+              <span className="inline-flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-neutral-300 bg-neutral-100 text-base font-semibold text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                {photoPreviewUrl && imageError ? "!" : "No photo"}
+              </span>
+            )}
+            <div className="space-y-1">
+              <p className="text-base font-semibold">{previewName}</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">Trust Me Bro</p>
+              <p className="text-sm text-muted-foreground">Cubid ID: {profile?.cubid_id ?? "Pending from onboarding"}</p>
+            </div>
+          </div>
+          {photoPreviewUrl && imageError ? (
+            <p className="rounded border border-amber-400/70 bg-amber-50/70 p-2 text-sm text-amber-700 dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-200">
+              We couldn’t load this image. Confirm the URL works in a new tab, then paste it here again.
+            </p>
+          ) : null}
+          {!photoPreviewUrl && !imageError ? (
+            <p className="text-xs text-muted-foreground">Add a photo URL above to see it rendered here.</p>
+          ) : null}
+        </aside>
+      </div>
     </section>
   );
 }

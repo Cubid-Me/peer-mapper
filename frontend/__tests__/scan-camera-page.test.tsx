@@ -1,17 +1,26 @@
 import type { Session } from "@supabase/supabase-js";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CameraPage from "../src/app/(routes)/scan/camera/page";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
 
-const { pushMock, requestQrChallengeMock, verifyQrChallengeMock, ensureWalletMock } = vi.hoisted(() => ({
+const {
+  pushMock,
+  requestQrChallengeMock,
+  verifyQrChallengeMock,
+  ensureWalletMock,
+  getUserMediaMock,
+  notifyHandshakeCompleteMock,
+} = vi.hoisted(() => ({
   pushMock: vi.fn(),
   requestQrChallengeMock: vi.fn(),
   verifyQrChallengeMock: vi.fn(),
   ensureWalletMock: vi.fn(),
+  getUserMediaMock: vi.fn(),
+  notifyHandshakeCompleteMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -29,12 +38,28 @@ vi.mock("../src/lib/wallet", () => ({
   ensureWallet: ensureWalletMock,
 }));
 
+vi.mock("../src/lib/handshake", () => ({
+  notifyHandshakeComplete: notifyHandshakeCompleteMock,
+}));
+
+const originalPlay = HTMLMediaElement.prototype.play;
+
+beforeAll(() => {
+  HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+});
+
+afterAll(() => {
+  HTMLMediaElement.prototype.play = originalPlay;
+});
+
 describe("CameraPage", () => {
   beforeEach(() => {
     pushMock.mockReset();
     requestQrChallengeMock.mockReset();
     verifyQrChallengeMock.mockReset();
     ensureWalletMock.mockReset();
+    getUserMediaMock.mockReset();
+    notifyHandshakeCompleteMock.mockReset();
     act(() => {
       useUserStore.getState().reset();
       useScanStore.getState().reset();
@@ -51,6 +76,15 @@ describe("CameraPage", () => {
       walletAddress: null,
     });
 
+    getUserMediaMock.mockResolvedValue({
+      getTracks: () => [{ stop: vi.fn() }],
+    } as unknown as MediaStream);
+
+    Object.defineProperty(window.navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: getUserMediaMock },
+    });
+
     const ethereumRequest = vi.fn();
     (window as typeof window & { ethereum?: { request: ReturnType<typeof vi.fn> } }).ethereum = {
       request: ethereumRequest,
@@ -59,6 +93,7 @@ describe("CameraPage", () => {
 
   afterEach(() => {
     delete (window as typeof window & { ethereum?: unknown }).ethereum;
+    delete (window.navigator as Navigator & { mediaDevices?: MediaDevices }).mediaDevices;
   });
 
   it("completes the QR verification happy path", async () => {
@@ -86,7 +121,13 @@ describe("CameraPage", () => {
       ],
     });
 
+    notifyHandshakeCompleteMock.mockResolvedValueOnce(undefined);
+
     render(<CameraPage />);
+
+    await waitFor(() => expect(getUserMediaMock).toHaveBeenCalled());
+    const devSummary = await screen.findByText(/for devs only/i);
+    await user.click(devSummary);
 
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     const targetAddress = "0x000000000000000000000000000000000000dEaD";
@@ -138,6 +179,18 @@ describe("CameraPage", () => {
       ),
     );
 
+    await waitFor(() =>
+      expect(notifyHandshakeCompleteMock).toHaveBeenCalledWith({
+        challengeId: "challenge-1",
+        expiresAt: 1700001200,
+        overlaps: [
+          { issuer: "0xIssuer", trustLevel: 4, circle: null, freshnessSeconds: 42 },
+        ],
+        targetCubid: "cubid_peer",
+        viewerCubid: "cubid_me",
+      }),
+    );
+
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/results"));
 
     const result = useScanStore.getState().lastResult;
@@ -149,6 +202,10 @@ describe("CameraPage", () => {
     const user = userEvent.setup();
 
     render(<CameraPage />);
+
+    await waitFor(() => expect(getUserMediaMock).toHaveBeenCalled());
+    const devSummary = await screen.findByText(/for devs only/i);
+    await user.click(devSummary);
 
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     fireEvent.change(payloadTextarea, {

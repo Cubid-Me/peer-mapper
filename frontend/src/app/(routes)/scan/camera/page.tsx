@@ -5,6 +5,7 @@ import { type FormEvent, useState } from "react";
 
 import QRScanner from "@/components/QRScanner";
 import { requestQrChallenge, verifyQrChallenge } from "@/lib/api";
+import { notifyHandshakeComplete } from "@/lib/handshake";
 import { useScanStore } from "@/lib/scanStore";
 import { useUserStore } from "@/lib/store";
 import { ensureWallet } from "@/lib/wallet";
@@ -156,15 +157,26 @@ export default function CameraPage() {
         session.access_token,
       );
 
-      setResult({
+      const completion = {
         targetCubid: parsed.cubidId,
         viewerCubid: profile.cubid_id,
         challengeId: result.challengeId,
         expiresAt: result.expiresAt,
         overlaps: result.overlaps,
-        verifiedAt: Date.now(),
-      });
-      setStatus("Overlap ready");
+      } as const;
+
+      setResult({ ...completion, verifiedAt: Date.now() });
+      setStatus("Sharing overlaps with your peer…");
+
+      try {
+        await notifyHandshakeComplete(completion);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to notify peer of handshake";
+        setError(message);
+        setStatus(null);
+        return;
+      }
+
       router.push("/results");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to verify challenge";
@@ -184,87 +196,108 @@ export default function CameraPage() {
         </p>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="space-y-4 rounded-3xl border border-slate-700/50 bg-slate-900/50 p-6 shadow-lg shadow-black/40">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="space-y-4 rounded-3xl border border-slate-700/50 bg-slate-900/60 p-6 shadow-lg shadow-black/40">
           <QRScanner />
-          <textarea
-            className="w-full rounded-2xl border border-slate-700/60 bg-slate-950/60 p-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400/70 focus:outline-none"
-            rows={3}
-            placeholder='Paste JSON like {"cubidId":"friend","address":"0x..."}'
-            value={rawQr}
-            onChange={(event) => setRawQr(event.target.value)}
-          />
-          <button
-            className="w-full rounded-full border border-sky-400/50 bg-sky-500/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-sky-100 shadow-lg shadow-sky-900/40 transition hover:border-sky-300 hover:bg-sky-500/30"
-            onClick={handleParse}
-            type="button"
-          >
-            Parse QR payload
-          </button>
+          <p className="text-sm text-slate-300/90">
+            Allow camera access so we can scan Cubid QR codes directly. We prioritise the rear camera on mobile to keep codes in focus.
+          </p>
+          <p className="text-xs text-slate-400">
+            If the scan struggles, use the developer tools to paste a payload manually.
+          </p>
         </div>
 
-        <div className="space-y-5">
-          {parsed ? (
-            <div className="text-sm text-slate-200 space-y-3 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 shadow-inner shadow-black/40">
-              <p className="font-medium text-slate-50">Target Cubid: {parsed.cubidId}</p>
-              <button
-                className="rounded-full border border-slate-600/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200"
-                onClick={handleChallenge}
-                type="button"
-              >
-                Issue challenge
-              </button>
-            </div>
-          ) : null}
-
-          {challenge ? (
-            <div className="space-y-3 rounded-3xl border border-sky-500/40 bg-sky-500/10 p-5 text-sm text-sky-100 shadow-lg shadow-sky-900/40">
-              <p className="font-medium">Challenge ID: {challenge.id}</p>
-              <p className="break-all text-xs text-sky-200/80">{challenge.value}</p>
-              <button
-                className="rounded-full border border-sky-400/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-sky-100 transition hover:border-sky-300 hover:text-sky-50"
-                onClick={handleSignChallenge}
-                type="button"
-              >
-                Sign as viewer
-              </button>
-            </div>
-          ) : null}
-
-          {challenge ? (
-            <form className="space-y-4 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 shadow-inner shadow-black/40" onSubmit={handleVerify}>
-              <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
-                Target wallet address
-                <input
-                  value={targetAddress}
-                  onChange={(event) => setTargetAddress(event.target.value)}
-                  className="w-full rounded-xl border border-slate-700/60 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 focus:border-sky-400/70 focus:outline-none"
-                  placeholder="0x…"
-                />
-              </label>
-              <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
-                Target signature
+        <details className="rounded-3xl border border-slate-700/60 bg-slate-900/60 p-6 text-slate-200 shadow-lg shadow-black/40">
+          <summary className="cursor-pointer select-none text-xs font-semibold uppercase tracking-[0.3em] text-sky-300">
+            For devs only
+          </summary>
+          <div className="mt-5 space-y-6">
+            <p className="text-sm text-slate-300/90">
+              Manual challenge flow helpers live here so the production scan stays clean.
+            </p>
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="space-y-4 rounded-3xl border border-slate-700/50 bg-slate-900/50 p-6 shadow-inner shadow-black/40">
                 <textarea
-                  value={targetSignature}
-                  onChange={(event) => setTargetSignature(event.target.value)}
-                  className="w-full rounded-xl border border-slate-700/60 bg-slate-950/60 p-3 text-sm text-slate-100 focus:border-sky-400/70 focus:outline-none"
+                  className="w-full rounded-2xl border border-slate-700/60 bg-slate-950/60 p-4 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-400/70 focus:outline-none"
                   rows={3}
-                  placeholder="0x…"
+                  placeholder='Paste JSON like {"cubidId":"friend","address":"0x..."}'
+                  value={rawQr}
+                  onChange={(event) => setRawQr(event.target.value)}
                 />
-              </label>
-              <button
-                className="w-full rounded-full border border-emerald-400/60 bg-emerald-500/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-emerald-100 shadow-lg shadow-emerald-900/30 transition hover:border-emerald-300 hover:bg-emerald-500/30 disabled:opacity-60"
-                disabled={!viewerSignature}
-                type="submit"
-              >
-                Verify overlap
-              </button>
-            </form>
-          ) : null}
+                <button
+                  className="w-full rounded-full border border-sky-400/50 bg-sky-500/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-sky-100 shadow-lg shadow-sky-900/40 transition hover:border-sky-300 hover:bg-sky-500/30"
+                  onClick={handleParse}
+                  type="button"
+                >
+                  Parse QR payload
+                </button>
+              </div>
 
-          {status ? <p className="text-xs uppercase tracking-[0.3em] text-slate-300">{status}</p> : null}
-          {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-        </div>
+              <div className="space-y-5">
+                {parsed ? (
+                  <div className="space-y-3 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 text-sm text-slate-200 shadow-inner shadow-black/40">
+                    <p className="font-medium text-slate-50">Target Cubid: {parsed.cubidId}</p>
+                    <button
+                      className="rounded-full border border-slate-600/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200"
+                      onClick={handleChallenge}
+                      type="button"
+                    >
+                      Issue challenge
+                    </button>
+                  </div>
+                ) : null}
+
+                {challenge ? (
+                  <div className="space-y-3 rounded-3xl border border-sky-500/40 bg-sky-500/10 p-5 text-sm text-sky-100 shadow-lg shadow-sky-900/40">
+                    <p className="font-medium">Challenge ID: {challenge.id}</p>
+                    <p className="break-all text-xs text-sky-200/80">{challenge.value}</p>
+                    <button
+                      className="rounded-full border border-sky-400/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-sky-100 transition hover:border-sky-300 hover:text-sky-50"
+                      onClick={handleSignChallenge}
+                      type="button"
+                    >
+                      Sign as viewer
+                    </button>
+                  </div>
+                ) : null}
+
+                {challenge ? (
+                  <form className="space-y-4 rounded-3xl border border-slate-700/60 bg-slate-900/60 p-5 shadow-inner shadow-black/40" onSubmit={handleVerify}>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
+                      Target wallet address
+                      <input
+                        value={targetAddress}
+                        onChange={(event) => setTargetAddress(event.target.value)}
+                        className="w-full rounded-xl border border-slate-700/60 bg-slate-950/60 px-4 py-2 text-sm text-slate-100 focus:border-sky-400/70 focus:outline-none"
+                        placeholder="0x…"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
+                      Target signature
+                      <textarea
+                        value={targetSignature}
+                        onChange={(event) => setTargetSignature(event.target.value)}
+                        className="w-full rounded-xl border border-slate-700/60 bg-slate-950/60 p-3 text-sm text-slate-100 focus:border-sky-400/70 focus:outline-none"
+                        rows={3}
+                        placeholder="0x…"
+                      />
+                    </label>
+                    <button
+                      className="w-full rounded-full border border-emerald-400/60 bg-emerald-500/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-emerald-100 shadow-lg shadow-emerald-900/30 transition hover:border-emerald-300 hover:bg-emerald-500/30 disabled:opacity-60"
+                      disabled={!viewerSignature}
+                      type="submit"
+                    >
+                      Verify overlap
+                    </button>
+                  </form>
+                ) : null}
+
+                {status ? <p className="text-xs uppercase tracking-[0.3em] text-slate-300">{status}</p> : null}
+                {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
   );

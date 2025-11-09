@@ -1,0 +1,92 @@
+import type { Session } from "@supabase/supabase-js";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import MyQrPage from "../src/app/(routes)/scan/my-qr/page";
+import type { HandshakeCompletion } from "../src/lib/handshake";
+import { useScanStore } from "../src/lib/scanStore";
+import { useUserStore } from "../src/lib/store";
+
+const { pushMock, subscribeToHandshakeMock } = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+  subscribeToHandshakeMock: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
+
+vi.mock("../src/lib/handshake", () => ({
+  subscribeToHandshake: subscribeToHandshakeMock,
+}));
+
+describe("MyQrPage", () => {
+  beforeEach(() => {
+    pushMock.mockReset();
+    subscribeToHandshakeMock.mockReset();
+    act(() => {
+      useUserStore.getState().reset();
+      useScanStore.getState().reset();
+    });
+
+    const session = { access_token: "token", user: { id: "user-1" } } as unknown as Session;
+    useUserStore.setState({
+      session,
+      user: {
+        user_id: "user-1",
+        cubid_id: "cubid_me",
+        display_name: "Casey Rivers",
+      },
+    });
+  });
+
+  afterEach(() => {
+    subscribeToHandshakeMock.mockReset();
+  });
+
+  it("renders the QR code and profile name", async () => {
+    subscribeToHandshakeMock.mockReturnValue(() => undefined);
+
+    render(<MyQrPage />);
+
+    await waitFor(() => expect(subscribeToHandshakeMock).toHaveBeenCalledWith("cubid_me", expect.any(Function)));
+
+    expect(screen.getByRole("img", { name: /scan this within ninety seconds/i })).toBeInTheDocument();
+    expect(screen.getByText("Casey Rivers")).toBeInTheDocument();
+    expect(screen.getByText(/Cubid ID: cubid_me/i)).toBeInTheDocument();
+  });
+
+  it("redirects to results when a handshake completes", async () => {
+    let handler: ((payload: HandshakeCompletion) => void) | null = null;
+    subscribeToHandshakeMock.mockImplementation((_cubid, callback) => {
+      handler = callback;
+      return vi.fn();
+    });
+
+    render(<MyQrPage />);
+
+    await waitFor(() => expect(handler).toBeInstanceOf(Function));
+
+    const payload: HandshakeCompletion = {
+      challengeId: "challenge-1",
+      expiresAt: 1700001200,
+      overlaps: [],
+      targetCubid: "cubid_me",
+      viewerCubid: "cubid_peer",
+    };
+
+    await act(async () => {
+      handler?.(payload);
+    });
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/results"));
+
+    expect(screen.getByText(/Handshake completed/i)).toBeInTheDocument();
+    const result = useScanStore.getState().lastResult;
+    expect(result?.challengeId).toBe("challenge-1");
+    expect(result?.viewerCubid).toBe("cubid_peer");
+    expect(result?.targetCubid).toBe("cubid_me");
+  });
+});

@@ -31,7 +31,7 @@ export function AppFooter() {
             </li>
           ))}
         </ol>
-        <p className="text-xs text-slate-500">© {new Date().getFullYear()} Peer Mapper • Built for trusted introductions on Moonbeam.</p>
+        <p className="text-xs text-slate-500">© {new Date().getFullYear()} Trust Me Bro • Built for trusted introductions on Moonbeam.</p>
       </div>
     </footer>
   );

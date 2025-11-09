@@ -1,25 +1,58 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import QRDisplay from "@/components/QRDisplay";
+import { subscribeToHandshake } from "@/lib/handshake";
+import { useScanStore } from "@/lib/scanStore";
 import { useUserStore } from "@/lib/store";
 
 export default function MyQrPage() {
+  const router = useRouter();
   const session = useUserStore((state) => state.session);
   const profile = useUserStore((state) => state.user);
+  const setResult = useScanStore((state) => state.setResult);
 
   const [timestamp, setTimestamp] = useState(() => Date.now());
+  const [handshakeMessage, setHandshakeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setTimestamp(Date.now());
   }, [profile?.cubid_id]);
 
+  useEffect(() => {
+    setHandshakeMessage(null);
+  }, [timestamp]);
+
   const payload = useMemo(
     () => ({ cubidId: profile?.cubid_id ?? "", ts: timestamp }),
     [profile?.cubid_id, timestamp],
   );
+
+  useEffect(() => {
+    if (!profile?.cubid_id) {
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToHandshake(profile.cubid_id, (payload) => {
+      setResult({
+        targetCubid: payload.targetCubid,
+        viewerCubid: payload.viewerCubid,
+        challengeId: payload.challengeId,
+        expiresAt: payload.expiresAt,
+        overlaps: payload.overlaps,
+        verifiedAt: Date.now(),
+      });
+      setHandshakeMessage("Handshake completed—opening shared overlaps…");
+      router.push("/results");
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [profile?.cubid_id, router, setResult]);
 
   if (!session) {
     return (
@@ -40,6 +73,8 @@ export default function MyQrPage() {
     );
   }
 
+  const displayName = profile?.display_name?.trim() || "Your chosen name";
+
   return (
     <section className="space-y-8">
       <header className="space-y-3">
@@ -51,11 +86,25 @@ export default function MyQrPage() {
         </p>
       </header>
 
-      <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-12">
-        <div className="flex-1 rounded-3xl border border-slate-700/50 bg-slate-900/50 p-6 shadow-lg shadow-black/40">
-          <QRDisplay payload={payload} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="flex flex-col items-center gap-6 rounded-3xl border border-slate-700/50 bg-slate-900/60 p-8 text-center text-slate-100 shadow-lg shadow-black/40">
+          <QRDisplay
+            caption="Scan this within ninety seconds to stay in sync."
+            payload={payload}
+            size={320}
+          />
+          <div className="space-y-1">
+            <p className="text-lg font-semibold text-slate-50">{displayName}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Trust Me Bro</p>
+            <p className="text-sm text-slate-300">Cubid ID: {profile?.cubid_id ?? "—"}</p>
+          </div>
+          {handshakeMessage ? (
+            <p className="rounded-full border border-emerald-400/60 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100">
+              {handshakeMessage}
+            </p>
+          ) : null}
         </div>
-        <div className="max-w-sm space-y-4 text-sm text-slate-200">
+        <div className="max-w-xl space-y-4 text-left text-sm text-slate-200">
           <p>
             <strong className="text-slate-50">Need onboarding?</strong> Make sure your profile carries a Cubid ID so peers can
             locate you instantly.
