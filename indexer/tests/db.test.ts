@@ -52,6 +52,27 @@ describe('IndexerDatabase', () => {
     db.close();
   });
 
+  it('honours canonical anchors when provided', () => {
+    const db = new IndexerDatabase(':memory:');
+    db.migrate();
+
+    const initial = createRecord({ uid: '0xaaa', blockTime: 200 });
+    expect(db.upsertAttestation(initial)).toBe(true);
+
+    const canonicalUid = `0x${'11'.repeat(32)}`;
+    const anchored = createRecord({ uid: canonicalUid, blockTime: 150 });
+    expect(db.upsertAttestation(anchored, canonicalUid)).toBe(true);
+
+    const competing = createRecord({ uid: `0x${'22'.repeat(32)}`, blockTime: 250 });
+    expect(db.upsertAttestation(competing, canonicalUid)).toBe(false);
+
+    const stored = db.getAttestation(anchored.issuer, anchored.cubidId);
+    expect(stored?.uid).toBe(canonicalUid.toLowerCase());
+    expect(stored?.blockTime).toBe(150);
+
+    db.close();
+  });
+
   it('removes rows by UID', () => {
     const db = new IndexerDatabase(':memory:');
     db.migrate();

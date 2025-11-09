@@ -15,6 +15,9 @@ const ATTESTATION_FIELDS = [
   { name: 'nonce', type: 'uint256' },
 ] as const;
 
+const ZERO_UID = '0x0000000000000000000000000000000000000000000000000000000000000000';
+const MAX_CUBID_LENGTH = 256;
+
 const EAS_ABI = [
   {
     type: 'event',
@@ -62,12 +65,36 @@ const EAS_ABI = [
   },
 ] as const;
 
+const FEEGATE_ABI = [
+  {
+    type: 'function',
+    name: 'getLastUID',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'issuer', type: 'address' },
+      { name: 'cubidId', type: 'string' },
+    ],
+    outputs: [{ name: 'uid', type: 'bytes32' }],
+  },
+] as const;
+
+export interface DecodedAttestationData {
+  cubidId: string;
+  trustLevel: number;
+  human: boolean;
+  circle: Hex;
+  issuedAt: number;
+  expiry: number;
+}
+
 export interface AttestedLog {
   uid: `0x${string}`;
   attester: `0x${string}`;
   schemaUID: `0x${string}`;
   blockTime: number;
   data: Hex;
+  decodedData?: DecodedAttestationData;
+  lastUid?: `0x${string}`;
 }
 
 export interface RevokedLog {
@@ -81,7 +108,7 @@ export interface ListenerOptions {
   database?: IndexerDatabase;
 }
 
-export function decodeAttestationData(data: Hex) {
+export function decodeAttestationData(data: Hex): DecodedAttestationData {
   const [cubidId, trustLevel, human, circle, issuedAt, expiry] = decodeAbiParameters(
     ATTESTATION_FIELDS,
     data,
@@ -105,6 +132,39 @@ function hexToBuffer(value: Hex): Buffer | null {
   return Buffer.from(value.slice(2), 'hex');
 }
 
+interface BackoffOptions {
+  attempts?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+}
+
+async function withExponentialBackoff<T>(
+  fn: () => Promise<T>,
+  options: BackoffOptions = {},
+): Promise<T> {
+  const attempts = options.attempts ?? 5;
+  const initialDelay = options.initialDelayMs ?? 200;
+  const maxDelay = options.maxDelayMs ?? 2_000;
+
+  let delay = initialDelay;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts - 1) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * 2, maxDelay);
+    }
+  }
+
+  throw lastError ?? new Error('withExponentialBackoff: exhausted retries');
+}
+
 export async function processAttested(
   log: AttestedLog,
   database: IndexerDatabase = getDatabase(),
@@ -114,7 +174,13 @@ export async function processAttested(
     return false;
   }
 
-  const decoded = decodeAttestationData(log.data);
+  const decoded = log.decodedData ?? decodeAttestationData(log.data);
+  if (!decoded.cubidId || decoded.cubidId.length > MAX_CUBID_LENGTH) {
+    return false;
+  }
+
+  const anchor = log.lastUid?.toLowerCase();
+  const canonicalAnchor = anchor && anchor !== '0x0' && anchor !== ZERO_UID ? anchor : undefined;
   const attestation: AttestationRecord = {
     issuer: log.attester.toLowerCase(),
     cubidId: decoded.cubidId,
@@ -123,11 +189,11 @@ export async function processAttested(
     circle: hexToBuffer(decoded.circle),
     issuedAt: decoded.issuedAt,
     expiry: decoded.expiry,
-    uid: log.uid,
+    uid: log.uid.toLowerCase(),
     blockTime: log.blockTime,
   };
 
-  return database.upsertAttestation(attestation);
+  return database.upsertAttestation(attestation, canonicalAnchor);
 }
 
 export function processRevoked(
@@ -139,7 +205,7 @@ export function processRevoked(
     return false;
   }
 
-  return database.deleteByUid(log.uid);
+  return database.deleteByUid(log.uid.toLowerCase());
 }
 
 export function startListener(options: ListenerOptions = {}): () => void {
@@ -166,21 +232,48 @@ export function startListener(options: ListenerOptions = {}): () => void {
       for (const log of logs) {
         try {
           if (!log.args) continue;
-          const block = await client.getBlock({ blockNumber: log.blockNumber! });
-          const attestation = (await client.readContract({
-            address: env.easAddress as `0x${string}`,
-            abi: EAS_ABI,
-            functionName: 'getAttestation',
-            args: [log.args.uid as `0x${string}`],
-          })) as { data: Hex; attester: `0x${string}` };
+          const block = await withExponentialBackoff(() =>
+            client.getBlock({ blockNumber: log.blockNumber! }),
+          );
+
+          const attestation = (await withExponentialBackoff(() =>
+            client.readContract({
+              address: env.easAddress as `0x${string}`,
+              abi: EAS_ABI,
+              functionName: 'getAttestation',
+              args: [log.args.uid as `0x${string}`],
+            }),
+          )) as { data: Hex; attester: `0x${string}` };
+
+          const decoded = decodeAttestationData(attestation.data);
+
+          let lastUid: `0x${string}` | undefined;
+          const attesterAddress = (attestation.attester ?? (log.args.attester as `0x${string}`)) as `0x${string}`;
+
+          if (env.feeGateAddress && env.feeGateAddress !== '0x0') {
+            try {
+              lastUid = (await withExponentialBackoff(() =>
+                client.readContract({
+                  address: env.feeGateAddress as `0x${string}`,
+                  abi: FEEGATE_ABI,
+                  functionName: 'getLastUID',
+                  args: [attesterAddress, decoded.cubidId],
+                }),
+              )) as `0x${string}`;
+            } catch (anchorError) {
+              logger.warn({ err: anchorError }, 'failed to fetch FeeGate last UID anchor');
+            }
+          }
 
           await processAttested(
             {
               uid: log.args.uid as `0x${string}`,
-              attester: attestation.attester ?? (log.args.attester as `0x${string}`),
+              attester: attesterAddress,
               schemaUID: log.args.schemaUID as `0x${string}`,
               blockTime: Number(block.timestamp),
               data: attestation.data,
+              decodedData: decoded,
+              lastUid,
             },
             database,
           );

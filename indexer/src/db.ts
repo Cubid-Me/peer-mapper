@@ -52,6 +52,25 @@ type QrChallengeRow = {
   used: number;
 };
 
+const ZERO_UID = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+function normaliseUid(uid: string): string {
+  if (uid === '0x0') {
+    return ZERO_UID;
+  }
+
+  return uid.toLowerCase();
+}
+
+function isMeaningfulAnchor(anchor?: string): anchor is string {
+  if (!anchor) {
+    return false;
+  }
+
+  const normalised = normaliseUid(anchor);
+  return normalised !== ZERO_UID;
+}
+
 export class IndexerDatabase {
   private readonly db: Database.Database;
 
@@ -68,17 +87,25 @@ export class IndexerDatabase {
     this.db.exec('COMMIT');
   }
 
-  upsertAttestation(record: AttestationRecord): boolean {
+  upsertAttestation(record: AttestationRecord, anchorUid?: string): boolean {
+    const recordUid = normaliseUid(record.uid);
+    const canonicalAnchor = isMeaningfulAnchor(anchorUid) ? normaliseUid(anchorUid) : undefined;
+
     const existing = this.db
       .prepare('SELECT uid, block_time FROM attestations_latest WHERE issuer = ? AND cubid_id = ?')
       .get(record.issuer, record.cubidId) as { uid: string; block_time: number } | undefined;
 
-    if (existing) {
+    if (canonicalAnchor) {
+      if (recordUid !== canonicalAnchor) {
+        return false;
+      }
+    } else if (existing) {
       if (existing.block_time > record.blockTime) {
         return false;
       }
 
-      if (existing.block_time === record.blockTime && existing.uid.localeCompare(record.uid) >= 0) {
+      const existingUid = normaliseUid(existing.uid);
+      if (existing.block_time === record.blockTime && existingUid.localeCompare(recordUid) >= 0) {
         return false;
       }
     }
@@ -105,7 +132,7 @@ export class IndexerDatabase {
         record.circle,
         record.issuedAt,
         record.expiry,
-        record.uid,
+        recordUid,
         record.blockTime,
       );
 
@@ -113,11 +140,12 @@ export class IndexerDatabase {
   }
 
   markRevoked(issuer: string, cubidId: string, uid: string): boolean {
+    const normalisedUid = normaliseUid(uid);
     const existing = this.db
       .prepare('SELECT uid FROM attestations_latest WHERE issuer = ? AND cubid_id = ?')
       .get(issuer, cubidId) as { uid: string } | undefined;
 
-    if (!existing || existing.uid !== uid) {
+    if (!existing || normaliseUid(existing.uid) !== normalisedUid) {
       return false;
     }
 
@@ -129,15 +157,16 @@ export class IndexerDatabase {
   }
 
   deleteByUid(uid: string): boolean {
+    const normalisedUid = normaliseUid(uid);
     const existing = this.db
       .prepare('SELECT issuer, cubid_id FROM attestations_latest WHERE uid = ?')
-      .get(uid) as { issuer: string; cubid_id: string } | undefined;
+      .get(normalisedUid) as { issuer: string; cubid_id: string } | undefined;
 
     if (!existing) {
       return false;
     }
 
-    this.db.prepare('DELETE FROM attestations_latest WHERE uid = ?').run(uid);
+    this.db.prepare('DELETE FROM attestations_latest WHERE uid = ?').run(normalisedUid);
     return true;
   }
 
