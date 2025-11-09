@@ -7,9 +7,9 @@ import { useMemo } from "react";
 import { useUserStore } from "../lib/store";
 
 function getInitials(value: string | null | undefined): string {
-  if (!value) return "PM";
+  if (!value) return "TM";
   const trimmed = value.trim();
-  if (!trimmed) return "PM";
+  if (!trimmed) return "TM";
   const segments = trimmed.split(/\s+/).slice(0, 2);
   if (segments.length === 1) {
     return segments[0]!.slice(0, 2).toUpperCase();
@@ -25,7 +25,7 @@ export function AppHeader() {
   const session = useUserStore((state) => state.session);
   const profile = useUserStore((state) => state.user);
 
-  const displayName = profile?.display_name ?? session?.user?.email ?? "Peer Mapper";
+  const displayName = profile?.display_name ?? session?.user?.email ?? "Trust Me Bro";
   const avatarInitials = useMemo(
     () => getInitials(profile?.display_name ?? profile?.cubid_id ?? session?.user?.email),
     [profile?.cubid_id, profile?.display_name, session?.user?.email],
@@ -39,7 +39,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-20 border-b border-white/10 bg-black/40 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 text-sm text-slate-200">
         <Link className="font-semibold tracking-wide text-slate-100 transition hover:text-sky-300" href="/">
-          Peer Mapper
+          Trust Me Bro
         </Link>
 
         <nav className="flex items-center gap-6 text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">

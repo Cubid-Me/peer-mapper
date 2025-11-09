@@ -8,7 +8,7 @@ import { AppHeader } from "../components/AppHeader";
 import { AuthProvider } from "../components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "Peer Mapper",
+  title: "Trust Me Bro",
   description: "QR-powered trust overlaps on Moonbeam",
 };
 

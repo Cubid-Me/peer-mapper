@@ -29,10 +29,10 @@ export default function NewUserPage() {
       router.replace("/(routes)/signin");
       return;
     }
-    if (profile?.cubid_id && profile?.display_name && profile?.evm_address) {
-      router.replace("/(routes)/circle");
+    if (profile?.cubid_id) {
+      router.replace("/(routes)/profile");
     }
-  }, [profile, router, session]);
+  }, [profile?.cubid_id, router, session]);
 
   useEffect(() => {
     setForm({
@@ -105,7 +105,7 @@ export default function NewUserPage() {
   return (
     <section className="space-y-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Welcome to Peer Mapper</h1>
+        <h1 className="text-3xl font-semibold">Welcome to Trust Me Bro</h1>
         <p className="text-muted-foreground">
           Confirm your Cubid identity, pick a display name, and connect your Nova/EVM wallet to start vouching and scanning.
         </p>
@@ -119,7 +119,7 @@ export default function NewUserPage() {
             <input
               className="rounded border border-neutral-300 px-3 py-2 text-base shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
               onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
-              placeholder="Casey Mapper"
+              placeholder="Casey Rivers"
               value={form.displayName}
             />
           </label>

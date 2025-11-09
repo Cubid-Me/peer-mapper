@@ -8,7 +8,7 @@ const HIGHLIGHTS = [
   {
     title: "Prove people are known, not anonymous",
     description:
-      "Peer Mapper connects Supabase auth, Cubid IDs, and Ethereum attestations so you can verify that the human in front of you is vouched for by people you already trust.",
+      "Trust Me Bro connects Supabase auth, Cubid IDs, and Ethereum attestations so you can verify that the human in front of you is vouched for by people you already trust.",
   },
   {
     title: "QR handshakes in under a minute",
@@ -72,7 +72,7 @@ export default function Home() {
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-16">
         <section className="rounded-3xl border border-white/10 bg-white/5 p-10 shadow-xl shadow-sky-900/20 backdrop-blur">
           <div className="mb-6 flex flex-col gap-3 text-sky-200">
-            <span className="text-xs font-semibold uppercase tracking-[0.4em] text-sky-400/90">Peer Mapper</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.4em] text-sky-400/90">Trust Me Bro</span>
             <h1 className="text-4xl font-bold leading-tight text-slate-50 sm:text-5xl">
               Trust people faster with verifiable overlaps
             </h1>

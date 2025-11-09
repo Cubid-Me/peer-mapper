@@ -38,7 +38,7 @@ describe("AppHeader", () => {
 
     render(<AppHeader />);
 
-    expect(screen.getByRole("link", { name: /Peer Mapper/i })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: /Trust Me Bro/i })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /My QR code/i })).toHaveAttribute("href", "/scan/my-qr");
     expect(screen.getByRole("link", { name: /Camera/i })).toHaveAttribute("href", "/scan/camera");
     expect(screen.getByRole("link", { name: /My Circle/i })).toHaveAttribute("href", "/circle");
