@@ -756,11 +756,13 @@ supabase db lint
 
 3. **Pages**
 
-- `/signin`: email → Cubid → store `cubidId`; connect wallet.
-- `/circle`: fetch inbound/outbound from `GET /profile/:cubidId`; render trust chips.
+- `/signin`: email → OTP, redirect to /new-user or /circle
+- `/new-user`: name → profile picture → connect wallet → fetch `cubidId` → store data in supabase public.users table.
+- `/scan`: show my QR (`{ cubidId, ts }`), or scan partner’s QR → triggers QR challenge/verify → fetch results = partner's userId, name, photo (bidirectional, shows up for both users at same time). Redirect to /results
+- `/results`: render overlaps list: issuer short addr, trust level, circle, freshness. Option to vouch, redirecting to /vouch
 - `/vouch`: select `cubidId` (input), choose trust fields; call `/attest/prepare` → wallet signs → `/attest/relay`; handle 3rd fee UI.
-- `/scan`: show my QR (`{ cubidId, ts }`), or scan partner’s QR → triggers QR challenge/verify → fetch results.
-- `/results`: render overlaps list: issuer short addr, trust level, circle, freshness.
+- `/circle`: fetch inbound/outbound from `GET /profile/:cubidId`; render trust chips for all users I've vouched for before.
+- `/profile': View / edit name & profile picture. View cubidId (read only). Can redirect to /scan.
 
 4. **Tests**
 
