@@ -79,6 +79,76 @@ describe('listener helpers', () => {
     expect(row?.circle?.length).toBe(32);
   });
 
+  it('requires canonical uid match when anchor provided', async () => {
+    const canonical = `0x${'33'.repeat(32)}`;
+    const data = encodeAbiParameters(schemaFields, [
+      'cubid:anchored',
+      5n,
+      true,
+      '0x' + '01'.repeat(32),
+      1_700_000_400n,
+      0n,
+      9n,
+    ]) as Hex;
+
+    const updated = await processAttested(
+      {
+        uid: canonical,
+        attester: '0x00000000000000000000000000000000000000dd',
+        schemaUID: '0x1234',
+        blockTime: 1_700_000_500,
+        data,
+        lastUid: canonical,
+      },
+      db,
+    );
+
+    expect(updated).toBe(true);
+
+    const skipped = await processAttested(
+      {
+        uid: `0x${'44'.repeat(32)}`,
+        attester: '0x00000000000000000000000000000000000000dd',
+        schemaUID: '0x1234',
+        blockTime: 1_700_000_600,
+        data,
+        lastUid: canonical,
+      },
+      db,
+    );
+
+    expect(skipped).toBe(false);
+
+    const stored = db.getAttestation('0x00000000000000000000000000000000000000dd', 'cubid:anchored');
+    expect(stored?.uid).toBe(canonical.toLowerCase());
+  });
+
+  it('rejects oversized cubid identifiers', async () => {
+    const longCubid = `cubid:${'x'.repeat(300)}`;
+    const data = encodeAbiParameters(schemaFields, [
+      longCubid,
+      1n,
+      false,
+      '0x' + '00'.repeat(32),
+      0n,
+      0n,
+      0n,
+    ]) as Hex;
+
+    const updated = await processAttested(
+      {
+        uid: '0x05',
+        attester: '0x00000000000000000000000000000000000000ee',
+        schemaUID: '0x1234',
+        blockTime: 1,
+        data,
+      },
+      db,
+    );
+
+    expect(updated).toBe(false);
+  });
+
   it('ignores attestations for other schemas', async () => {
     const data = encodeAbiParameters(schemaFields, [
       'cubid:ignored',

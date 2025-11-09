@@ -93,6 +93,8 @@ bytes32 public immutable SCHEMA_UID;                 // CubidTrust schema UID
 
 - FeeGate increments `issuerNonce[issuer]`, `attestCount[issuer]++`, and calls **`EAS.attest`** with the schema + encoded payload.
 - Optionally, FeeGate caches `lastUID[issuer][cubidId] = uid` to anchor “latest wins”.
+- Delegated submissions are rejected when `block.timestamp > deadline`, ensuring relayed payloads cannot be replayed indefinitely.
+- `getLastUID(address issuer, string cubidId)` returns the canonical UID anchor the indexer can rely on.
 
 FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so the frontend can generate the delegated payload digest without reimplementing Solidity hashing.
 
@@ -168,9 +170,8 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 ### 3.5 Chain listener skeleton (Session 04)
 
-- `indexer/src/listener.ts` boots a `viem` watcher (when `MOONBEAM_RPC` is present) for EAS `Attested`/`Revoked`.
-- Each attestation fetches `getAttestation(uid)`, decodes the Cubid payload with ABI helpers, and upserts the materialized
-  view via the SQLite helper.
+- `indexer/src/listener.ts` boots a `viem` watcher (when `MOONBEAM_RPC` is present) for EAS `Attested`/`Revoked` with exponential backoff on RPC calls to tolerate transient failures.
+- Each attestation fetches `getAttestation(uid)`, decodes the Cubid payload with ABI helpers, asks `FeeGate.getLastUID(issuer, cubidId)` for the canonical anchor (when configured), and upserts the materialized view via the SQLite helper, preferring the anchor over block time when available.
 - Revocations drop rows when the UID matches, keeping the cache aligned with on-chain state.
 - `indexer/src/api.ts` now wires Express, Pino logging, automatic migrations, and the listener lifecycle.
 

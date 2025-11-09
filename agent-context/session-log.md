@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v11
+
+- 2025-11-08 — Session 08 (security & determinism polish): Enforced delegated deadline expiry in FeeGate, exposed the on-chain `getLastUID` anchor, taught the indexer listener to honour the anchor with exponential backoff on RPC fetches and basic Cubid length guards, expanded Vitest coverage for canonical anchors/DoS checks, and refreshed the specs + log.
+
 session: v10
 
 - 2025-11-08 — Session 07 (frontend hardening): Finalised the App Router UI, wired Supabase + Cubid onboarding with wallet linking, added the QR verification result store, expanded Vitest coverage for scan/results flows, and refreshed the technical/functional specs.

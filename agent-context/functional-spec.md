@@ -112,18 +112,19 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ## 4. System Behaviors (Functional Rules)
 
-| Behavior                       | Description                                                                                          |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| **Authentication**             | Supabase access tokens guard QR/PSI APIs and profiles respect `auth.uid()` RLS.                      |
-| **Attestation Directionality** | Trust is one-way; A→B doesn’t imply B→A.                                                             |
-| **Latest Wins**                | The latest attestation (by UID or block time) overrides any prior between the same issuer & subject. |
-| **Fee Enforcement**            | FeeGate enforces 100 GLMR charge on 3rd attestation; 1st and 2nd are free.                           |
-| **Delegated Signing**          | EIP-712 signatures allow gasless submission via app relayer.                                         |
-| **Expiry Handling**            | Indexer filters out expired attestations; chain does not auto-delete them.                           |
-| **Privacy**                    | Only Cubid IDs plus optional display name/photo are stored; Supabase RLS blocks cross-user reads.    |
-| **Rate Limits**                | Indexer limits read requests (2 req/s per IP; 100/day).                                              |
-| **Caching**                    | Overlap results cached for 120 s to avoid redundant computation.                                     |
-| **Challenge Validity**         | QR challenges expire after 90 s and cannot be reused.                                                |
+| Behavior                       | Description                                                                                                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**             | Supabase access tokens guard QR/PSI APIs and profiles respect `auth.uid()` RLS.                                                                             |
+| **Attestation Directionality** | Trust is one-way; A→B doesn’t imply B→A.                                                                                                                    |
+| **Latest Wins**                | The latest attestation (preferring FeeGate’s `getLastUID` anchor when present, otherwise block time) overrides any prior between the same issuer & subject. |
+| **Signature Deadlines**        | Delegated attestations expire once `block.timestamp` exceeds the signed deadline, preventing replay attacks.                                                |
+| **Fee Enforcement**            | FeeGate enforces 100 GLMR charge on 3rd attestation; 1st and 2nd are free.                                                                                  |
+| **Delegated Signing**          | EIP-712 signatures allow gasless submission via app relayer.                                                                                                |
+| **Expiry Handling**            | Indexer filters out expired attestations; chain does not auto-delete them.                                                                                  |
+| **Privacy**                    | Only Cubid IDs plus optional display name/photo are stored; Supabase RLS blocks cross-user reads.                                                           |
+| **Rate Limits**                | Indexer limits read requests (2 req/s per IP; 100/day).                                                                                                     |
+| **Caching**                    | Overlap results cached for 120 s to avoid redundant computation.                                                                                            |
+| **Challenge Validity**         | QR challenges expire after 90 s and cannot be reused.                                                                                                       |
 
 ---
 
