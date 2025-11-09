@@ -19,15 +19,10 @@ const bytes32Schema = z
   .string()
   .regex(/^0x([0-9a-fA-F]{64})?$/)
   .transform((value) => {
-    if (value === '0x') {
-      return ZERO_BYTES32 as `0x${string}`;
-    }
-
-    if (value.length === 66) {
-      return value.toLowerCase() as `0x${string}`;
-    }
-
-    return ZERO_BYTES32 as `0x${string}`;
+    // Only two cases are possible due to the regex: '0x' or 66-char bytes32
+    return value === '0x'
+      ? ZERO_BYTES32 as `0x${string}`
+      : value.toLowerCase() as `0x${string}`;
   });
 
 const prepareSchema = z.object({
