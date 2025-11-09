@@ -26,17 +26,20 @@ for each row execute function public.set_updated_at();
 alter table public.users enable row level security;
 
 -- Authenticated user can read/update only self
-create policy if not exists "users_self_select"
+drop policy if exists "users_self_select" on public.users;
+create policy "users_self_select"
 on public.users for select
 to authenticated
 using (user_id = auth.uid());
 
-create policy if not exists "users_self_upsert"
+drop policy if exists "users_self_upsert" on public.users;
+create policy "users_self_upsert"
 on public.users for insert
 to authenticated
 with check (user_id = auth.uid());
 
-create policy if not exists "users_self_update"
+drop policy if exists "users_self_update" on public.users;
+create policy "users_self_update"
 on public.users for update
 to authenticated
 using (user_id = auth.uid())
