@@ -78,7 +78,7 @@ No secrets should be committed—copy the relevant `.env.example` into `.env` lo
 
 ## Development Notes
 
-- **Tooling**: Node v22.21.0, pnpm 10.18.3, Foundry 1.4.4 (see `tool-versions.md`).
+- **Tooling**: Node v22.21.0, pnpm 10.18.3, Foundry v1.4.3 (see `tool-versions.md`).
 - **Linting**: `pnpm lint` (TS + Solidity) and `pnpm format`.
 - **Testing**: Workspace scripts (`vitest` today, forge tests added from Session 2 onward).
 - **Git hooks**: Husky + lint-staged ensure staged files pass lint/format before commit.

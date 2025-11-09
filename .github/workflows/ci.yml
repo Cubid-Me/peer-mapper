@@ -32,7 +32,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: 1.4.4
+          version: v1.4.3
 
       - name: Lint
         run: pnpm lint
@@ -44,7 +44,7 @@ jobs:
         run: pnpm --filter indexer build
 
       - name: Build contracts
-        run: pnpm build
+        run: pnpm --filter contracts build
 
       - name: Test frontend
         run: pnpm --filter frontend test
@@ -53,4 +53,4 @@ jobs:
         run: pnpm --filter indexer test
 
       - name: Test contracts
-        run: pnpm test
+        run: pnpm --filter contracts test
