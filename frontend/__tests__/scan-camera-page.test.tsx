@@ -1,9 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ScanPage from "../src/app/(routes)/scan/page";
+import CameraPage from "../src/app/(routes)/scan/camera/page";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
 
@@ -29,14 +29,16 @@ vi.mock("../src/lib/wallet", () => ({
   ensureWallet: ensureWalletMock,
 }));
 
-describe("ScanPage", () => {
+describe("CameraPage", () => {
   beforeEach(() => {
     pushMock.mockReset();
     requestQrChallengeMock.mockReset();
     verifyQrChallengeMock.mockReset();
     ensureWalletMock.mockReset();
-    useUserStore.getState().reset();
-    useScanStore.getState().reset();
+    act(() => {
+      useUserStore.getState().reset();
+      useScanStore.getState().reset();
+    });
 
     const session = {
       access_token: "supabase-token",
@@ -84,7 +86,7 @@ describe("ScanPage", () => {
       ],
     });
 
-    render(<ScanPage />);
+    render(<CameraPage />);
 
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     const targetAddress = "0x000000000000000000000000000000000000dEaD";
@@ -146,7 +148,7 @@ describe("ScanPage", () => {
   it("surfaces QR payload validation errors", async () => {
     const user = userEvent.setup();
 
-    render(<ScanPage />);
+    render(<CameraPage />);
 
     const payloadTextarea = screen.getByPlaceholderText(/Paste JSON like/);
     fireEvent.change(payloadTextarea, {
