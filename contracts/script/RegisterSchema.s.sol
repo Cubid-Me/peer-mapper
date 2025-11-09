@@ -53,7 +53,7 @@ contract RegisterSchema is Script {
 
     function _getRegistryAddress(string memory network) internal view returns (address) {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
         string memory json = vm.readFile(path);
 
         string memory key = string.concat(
@@ -66,7 +66,7 @@ contract RegisterSchema is Script {
 
     function _getResolverAddress(string memory network) internal view returns (address) {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
         string memory json = vm.readFile(path);
 
         string memory key = string.concat('.networks.', network, '.deployments.current.FeeGate');
@@ -86,7 +86,7 @@ contract RegisterSchema is Script {
         bool revocable
     ) internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
 
         string memory basePath = string.concat(
             '.networks.',

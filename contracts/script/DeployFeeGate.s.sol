@@ -45,7 +45,7 @@ contract DeployFeeGate is Script {
 
     function _getEASAddress(string memory network) internal view returns (address) {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
         string memory json = vm.readFile(path);
 
         string memory key = string.concat('.networks.', network, '.deployments.current.EAS');
@@ -54,7 +54,7 @@ contract DeployFeeGate is Script {
 
     function _getSchemaUID(string memory network) internal view returns (bytes32) {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
         string memory json = vm.readFile(path);
 
         string memory key = string.concat(
@@ -67,7 +67,7 @@ contract DeployFeeGate is Script {
 
     function _updateAddressesJson(string memory network, address feeGateAddress) internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
 
         string memory basePath = string.concat('.networks.', network, '.deployments.current');
 

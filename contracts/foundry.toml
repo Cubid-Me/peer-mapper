@@ -15,6 +15,12 @@ remappings = [
 
 auto_detect_solc = false
 
+# Allow scripts to read/write addresses.json in project root
+fs_permissions = [
+    { access = "read-write", path = "./addresses.json" },
+    { access = "read-write", path = "../addresses.json" }
+]
+
 [fmt]
 line_length = 120
 tab_width = 4

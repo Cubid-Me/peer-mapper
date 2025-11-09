@@ -44,7 +44,7 @@ contract DeployEAS is Script {
         address easAddr
     ) internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, '/addresses.json');
+        string memory path = string.concat(root, '/../addresses.json');
         string memory json = vm.readFile(path);
 
         // Build the path to update
