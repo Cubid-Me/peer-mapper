@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v8
+
+- 2025-11-08 — Session 06: implemented the attestation submission flow with viem-backed `/attest/prepare` + `/attest/relay`, added fee metadata + relayer handling, documented the API contract, refreshed specs, and expanded Vitest coverage for happy-path + validation errors.
+
 session: v7
 
 - 2025-11-08 — Session 05B: wired Supabase auth across frontend and indexer, added the shared `public.users` profile migration with RLS, introduced Zustand-backed session storage, refreshed sign-in flow for magic-link + profile updates, and documented the Supabase-powered architecture.

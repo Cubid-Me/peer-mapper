@@ -146,7 +146,10 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 ### 3.3 REST Endpoints
 
 - `POST /attest/prepare` → Returns EIP-712 typed data (domain: FeeGate) with `nonce` & `deadline`.
+  - Pulls `issuerNonce`, `attestCount`, fee constants, and `hasPaidFee` directly from FeeGate via viem.
+  - Deadline fixed at current UTC + 5 minutes; response includes fee metadata so the client can pre-fund the third attestation.
 - `POST /attest/relay` → Relays signature + optional `value` (if it’s the 3rd attestation) to FeeGate.
+  - Relayer uses `PRIVATE_KEY_RELAYER` to call `attestDelegated`, converts signature into `(v, r, s)`, and waits for one confirmation before responding.
 - `GET /profile/:cubidId` → Inbound latest attestations for that Cubid-ID.
 - `GET /qr/challenge` → `{ challengeId, challenge, expiresAt, issuedFor }` (valid ~90 s, stored in `qr_challenges`). Requires Supabase `Authorization: Bearer <access_token>`.
 - `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both with `viem.verifyMessage`, marks the challenge as used, then:
