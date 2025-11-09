@@ -130,6 +130,106 @@ hash once one confirmation is observed.
 
 ---
 
-Other routes (`/profile`, `/qr/*`, `/psi/*`) remain unchanged from the Session 05
-implementation and will be updated in a later pass when their behaviour
-solidifies.
+## `GET /profile/:cubidId`
+
+Returns the latest inbound attestations about the provided Cubid ID and, when an
+`issuer` query string is supplied, the outbound attestations issued by that
+wallet. Rows where `expiry` has passed are filtered out.
+
+- **Auth:** none
+- **Query params:**
+  - `issuer` (optional) — 0x-prefixed EVM address to fetch outbound vouches.
+- **Success (200):**
+  ```json
+  {
+    "cubidId": "viewer",
+    "inbound": [
+      {
+        "issuer": "0xIssuerInbound",
+        "cubidId": "viewer",
+        "trustLevel": 3,
+        "human": true,
+        "circle": null,
+        "issuedAt": 1700000000,
+        "expiry": 0,
+        "uid": "0x01",
+        "freshnessSeconds": 120
+      }
+    ],
+    "outbound": [
+      {
+        "issuer": "0xIssuerViewer",
+        "cubidId": "friend-1",
+        "trustLevel": 5,
+        "human": true,
+        "circle": "0x1234",
+        "issuedAt": 1700000300,
+        "expiry": 0,
+        "uid": "0x02",
+        "freshnessSeconds": 45
+      }
+    ]
+  }
+  ```
+- **Error (400):** malformed Cubid ID or issuer query.
+
+## `GET /qr/challenge`
+
+Issues a short-lived challenge for a Cubid ID. Requires a Supabase access token
+generated via magic-link sign in.
+
+- **Auth:** `Authorization: Bearer <supabase_access_token>`
+- **Query params:** `issuedFor` (string) — target Cubid ID.
+- **Success (200):**
+  ```json
+  {
+    "challengeId": "uuid",
+    "challenge": "peer-mapper:d6f...",
+    "issuedFor": "cubid_friend",
+    "expiresAt": 1700000123
+  }
+  ```
+- **Error (401):** missing/invalid Supabase JWT.
+- **Error (400):** invalid Cubid ID.
+
+## `POST /qr/verify`
+
+Verifies viewer and target signatures over a previously issued challenge,
+records it as used, and returns trust overlaps.
+
+- **Auth:** `Authorization: Bearer <supabase_access_token>`
+- **Request body:**
+  ```json
+  {
+    "challengeId": "uuid",
+    "challenge": "peer-mapper:d6f...",
+    "viewer": {
+      "cubidId": "viewer",
+      "address": "0xviewer",
+      "signature": "0xviewerSig"
+    },
+    "target": {
+      "cubidId": "target",
+      "address": "0xtarget",
+      "signature": "0xtargetSig"
+    }
+  }
+  ```
+- **Success (200):**
+  ```json
+  {
+    "challengeId": "uuid",
+    "expiresAt": 1700000123,
+    "overlaps": [
+      {
+        "issuer": "0xIssuerInbound",
+        "trustLevel": 3,
+        "circle": null,
+        "freshnessSeconds": 120
+      }
+    ]
+  }
+  ```
+- **Error (409):** challenge already used.
+- **Error (410):** challenge expired.
+- **Error (400):** invalid signatures or malformed payload.

@@ -150,9 +150,9 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
   - Deadline fixed at current UTC + 5 minutes; response includes fee metadata so the client can pre-fund the third attestation.
 - `POST /attest/relay` → Relays signature + optional `value` (if it’s the 3rd attestation) to FeeGate.
   - Relayer uses `PRIVATE_KEY_RELAYER` to call `attestDelegated`, converts signature into `(v, r, s)`, and waits for one confirmation before responding.
-- `GET /profile/:cubidId` → Inbound latest attestations for that Cubid-ID.
+- `GET /profile/:cubidId` → Inbound latest attestations for that Cubid-ID; optional `issuer=0x…` query returns outbound rows for the viewer wallet.
 - `GET /qr/challenge` → `{ challengeId, challenge, expiresAt, issuedFor }` (valid ~90 s, stored in `qr_challenges`). Requires Supabase `Authorization: Bearer <access_token>`.
-- `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both with `viem.verifyMessage`, marks the challenge as used, then:
+- `POST /qr/verify` → Party A & B each sign `challenge` (wallet sig), server verifies both with `viem.verifyMessage`, marks the challenge as used, returns sorted overlaps, then:
   - `POST /psi/intersection` (internal): compute overlaps with policy below.
 - `POST /psi/intersection` → Internal helper guarded by the same Supabase auth middleware.
 
@@ -178,31 +178,46 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 ## 4) Frontend (Next.js)
 
-### Screens
+### Architecture snapshot — Session 07
 
-1. **Sign-In**: Supabase magic link (email) → fetch/set `public.users` profile (Cubid ID, display name, photo) → Connect Nova/EVM wallet and persist address.
-2. **My Circle**: View inbound/outbound latest attestations; search by `cubidId`.
-3. **Vouch**:
-   - Pick `cubidId`, choose `trustLevel`, `human`, `circle`, `expiry`.
-   - Call `/attest/prepare` → wallet signs EIP-712 → call `/attest/relay`.
-   - If this is your **3rd attestation** and lifetime fee unpaid, UI prompts to confirm **100 GLMR**.
+- **App Router** under `frontend/src/app` with shared layout + global styles.
+- **Zustand stores**
+  - `useUserStore` persists Supabase session, profile row, and the currently connected wallet.
+  - `useScanStore` caches the latest QR verification payload so `/results` can render after navigation.
+- **Shared UI** lives in `frontend/src/components/` (`Badge`, `QRDisplay`, `QRScanner`, `UserSessionSummary`).
+- **API facade** in `frontend/src/lib/api.ts` wraps indexer endpoints (`/profile`, `/attest/prepare`, `/attest/relay`, `/qr/*`).
+- **Wallet helpers** (`frontend/src/lib/wallet.ts`) wrap `window.ethereum` access, letting pages request accounts without duplicating logic.
 
-4. **Scan / Verify**:
-   - A shows QR with `{ cubidId, ts }`.
-   - B scans → requests `/qr/challenge` → both sign the `challenge` with their wallets → server validates → runs PSI.
+### Route map & behaviour
 
-5. **Results**:
-   - Show overlapping trusted issuers re: counterparty, with badges for trust level, circle, and freshness.
+| Route                | Purpose & implementation notes                                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                  | Landing page (`app/page.tsx`) links to each flow in order.                                                                                                                                                                              |
+| `/(routes)/signin`   | Magic-link entry (`signin/page.tsx`). Sends OTP via `signInWithOtp`, watches `useUserStore.session` and redirects to onboarding or circle.                                                                                              |
+| `/(routes)/new-user` | Profile onboarding (`new-user/page.tsx`). Generates Cubid ID via `requestCubidId`, links wallets through `ensureWallet`, and upserts Supabase profile data.                                                                             |
+| `/(routes)/profile`  | Profile maintenance (`profile/page.tsx`). Reads from `useUserStore`, lets users edit display name/photo, persists with `upsertMyProfile`.                                                                                               |
+| `/(routes)/circle`   | Trust graph view (`circle/page.tsx`). Fetches inbound/outbound attestations via `getProfile`, formats freshness, and supports Cubid search.                                                                                             |
+| `/(routes)/vouch`    | Delegated attestation flow (`vouch/page.tsx`). Validates inputs, calls `prepareAttestation`, signs typed data through `window.ethereum`, and relays via `/attest/relay`, surfacing lifetime-fee metadata.                               |
+| `/(routes)/scan`     | QR handshake orchestrator (`scan/page.tsx`). Displays my QR payload (`QRDisplay`), parses peer payload, requests `/qr/challenge`, collects wallet signatures, and posts to `/qr/verify`. Stores the overlap response in `useScanStore`. |
+| `/(routes)/results`  | Overlap renderer (`results/page.tsx`). Reads from `useScanStore`, shows badge cards for each shared issuer, and falls back to a helpful prompt when no data exists.                                                                     |
 
-### State & Auth
+### Auth, Cubid & wallet integration
 
-- `frontend/src/components/AuthProvider.tsx` subscribes to Supabase session changes, bootstraps the current session on load, and hydrates the shared `useUserStore` Zustand store.
-- `useUserStore` holds `{ session, user, walletAddress }` so headers and feature routes can render consistent identity state.
-- Profile writes go through Supabase RPC (`users` table upsert) ensuring the indexer can associate API calls with `auth.uid()`.
+- `AuthProvider` boots Supabase session state and hydrates the profile before any route renders.
+- Cubid flow is mocked via `requestCubidId(email)` but stored alongside Supabase user metadata so the indexer has a consistent `cubid_id`.
+- `ensureWallet()` normalises Nova/EVM connection requests, storing the selected address in `useUserStore` so successive flows reuse it.
+- Pages guard against missing session/profile data by redirecting to sign-in when required.
 
-**QR Security**
+### QR security guardrails
 
-- **Short-lived challenge** must be signed by **both** parties’ EVM wallets before overlap is shown—prevents screenshot/replay.
+- A challenge is only usable once: `/scan` insists on fetching `/qr/challenge` with the viewer’s Supabase token, both parties sign via `personal_sign`, and `/results` only renders after `useScanStore.setResult` runs.
+- Status banners in `/scan` communicate progress (challenge issued, viewer signature captured, overlap ready) while errors (invalid JSON, missing wallet) are surfaced inline.
+
+### Testing posture (Vitest + RTL)
+
+- Component tests cover Cubid helpers, Auth provider bootstrapping, navigation links, scan store state, and the QR handshake happy path (`scan-page.test.tsx`).
+- `results-page.test.tsx` verifies overlap rendering logic and empty-state messaging.
+- Tests rely on mocked Supabase sessions, API calls, and `window.ethereum` to keep the UI deterministic.
 
 ---
 

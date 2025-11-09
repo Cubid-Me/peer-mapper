@@ -5,8 +5,8 @@
     "rootDir": "src",
     "tsBuildInfoFile": "dist/.tsbuildinfo",
     "types": ["node"],
-    "module": "CommonJS",
-    "moduleResolution": "Node10"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "tests"]

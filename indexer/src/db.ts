@@ -212,6 +212,29 @@ export class IndexerDatabase {
     }));
   }
 
+  listAttestationsByIssuer(issuer: string): AttestationRecord[] {
+    const rows = this.db
+      .prepare(
+        `SELECT issuer, cubid_id as cubidId, trust_level as trustLevel, human, circle, issued_at as issuedAt,
+                expiry, uid, block_time as blockTime
+         FROM attestations_latest
+         WHERE issuer = ?`,
+      )
+      .all(issuer) as AttestationRow[];
+
+    return rows.map((row) => ({
+      issuer: row.issuer,
+      cubidId: row.cubidId,
+      trustLevel: row.trustLevel,
+      human: Boolean(row.human),
+      circle: row.circle ?? null,
+      issuedAt: row.issuedAt,
+      expiry: row.expiry,
+      uid: row.uid,
+      blockTime: row.blockTime,
+    }));
+  }
+
   createQrChallenge(record: QrChallengeRecord): void {
     this.db
       .prepare(

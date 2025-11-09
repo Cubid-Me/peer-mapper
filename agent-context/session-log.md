@@ -1,5 +1,13 @@
 # session-log.md
 
+session: v10
+
+- 2025-11-08 — Session 07 (frontend hardening): Finalised the App Router UI, wired Supabase + Cubid onboarding with wallet linking, added the QR verification result store, expanded Vitest coverage for scan/results flows, and refreshed the technical/functional specs.
+
+session: v9
+
+- 2025-11-08 — Session 07: delivered the full Next.js frontend flow with Supabase onboarding, circle dashboard, profile editor, delegated vouch UI, QR challenge handshake, overlap results store, and wired it to the new profile/QR endpoints plus fresh Vitest coverage and docs.
+
 session: v8
 
 - 2025-11-08 — Session 06: implemented the attestation submission flow with viem-backed `/attest/prepare` + `/attest/relay`, added fee metadata + relayer handling, documented the API contract, refreshed specs, and expanded Vitest coverage for happy-path + validation errors.
