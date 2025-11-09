@@ -3,7 +3,7 @@ Thisi document is a 10+ session, soup-to-nuts implementation plan for an AI Codi
 ---
 
 Current state: Session 1 completed (monorepo scaffolded).
-Next action: Start session 6, rows 694++
+Next action: Start session 7, rows 735++
 
 ---
 
