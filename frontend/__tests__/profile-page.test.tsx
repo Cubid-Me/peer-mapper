@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ProfilePage from "../src/app/(routes)/profile/page";
+import ProfilePage from "../src/app/profile/page";
 import { useUserStore } from "../src/lib/store";
 
 const { replaceMock } = vi.hoisted(() => ({

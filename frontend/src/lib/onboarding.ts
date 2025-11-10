@@ -19,11 +19,11 @@ export function useRequireCompletedOnboarding() {
       return;
     }
     if (!session) {
-      router.replace("/(routes)/signin");
+      router.replace("/signin");
       return;
     }
     if (!hasCompletedOnboarding(profile)) {
-      router.replace("/(routes)/new-user");
+      router.replace("/new-user");
     }
   }, [initialised, profile, router, session]);
 
@@ -43,11 +43,11 @@ export function useRestrictToIncompleteOnboarding() {
       return;
     }
     if (!session) {
-      router.replace("/(routes)/signin");
+      router.replace("/signin");
       return;
     }
     if (hasCompletedOnboarding(profile)) {
-      router.replace("/(routes)/circle");
+      router.replace("/circle");
     }
   }, [initialised, profile, router, session]);
 

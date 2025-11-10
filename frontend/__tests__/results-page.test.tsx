@@ -2,7 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ResultsPage from "../src/app/(routes)/results/page";
+import ResultsPage from "../src/app/results/page";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
 

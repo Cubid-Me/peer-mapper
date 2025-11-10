@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import IndexerPage from "../src/app/(routes)/indexer/page";
+import IndexerPage from "../src/app/indexer/page";
 
 describe("Indexer page", () => {
   it("embeds the Moonbeam indexer inside the app shell", () => {

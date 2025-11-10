@@ -2,7 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import MyQrPage from "../src/app/(routes)/scan/my-qr/page";
+import MyQrPage from "../src/app/scan/my-qr/page";
 import type { HandshakeCompletion } from "../src/lib/handshake";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
