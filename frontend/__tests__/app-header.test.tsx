@@ -32,7 +32,30 @@ describe("AppHeader", () => {
     act(() => {
       useUserStore.setState({
         session,
-        user: { user_id: "1", display_name: "Sky Trail", cubid_id: "sky", evm_address: "0x123" },
+        parentProfile: {
+          id: "parent",
+          parent_profile_id: null,
+          display_name: null,
+          photo_url: null,
+          cubid_id: null,
+          locked_at: null,
+          created_at: "2025-01-01T00:00:00Z",
+          auth_user_id: "1",
+          email_address: "agent@example.com",
+        },
+        walletProfiles: [
+          {
+            id: "wallet-1",
+            parent_profile_id: "parent",
+            display_name: "Sky Trail",
+            photo_url: null,
+            cubid_id: "sky",
+            locked_at: null,
+            created_at: "2025-01-02T00:00:00Z",
+            wallet_address: "0x123",
+          },
+        ],
+        activeWalletProfileId: "wallet-1",
         walletAddress: null,
         initialised: true,
       });

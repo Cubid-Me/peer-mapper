@@ -10,8 +10,8 @@ const { getSessionMock, onAuthStateChangeMock } = vi.hoisted(() => ({
   onAuthStateChangeMock: vi.fn(),
 }));
 
-const { fetchMyProfileMock } = vi.hoisted(() => ({
-  fetchMyProfileMock: vi.fn(),
+const { fetchMyProfilesMock } = vi.hoisted(() => ({
+  fetchMyProfilesMock: vi.fn(),
 }));
 
 vi.mock("../src/lib/auth", () => ({
@@ -20,7 +20,7 @@ vi.mock("../src/lib/auth", () => ({
 }));
 
 vi.mock("../src/lib/profile", () => ({
-  fetchMyProfile: fetchMyProfileMock,
+  fetchMyProfiles: fetchMyProfilesMock,
 }));
 
 describe("AuthProvider", () => {
@@ -35,10 +35,34 @@ describe("AuthProvider", () => {
 
   it("bootstraps the session and profile on mount", async () => {
     const session = { user: { id: "user-123", email: "user@example.com" } } as unknown as Session;
-    const profile = { user_id: "user-123", display_name: "Test User" };
+    const bundle = {
+      parent: {
+        id: "parent-profile",
+        parent_profile_id: null,
+        display_name: null,
+        photo_url: null,
+        cubid_id: null,
+        locked_at: null,
+        created_at: "2025-01-01T00:00:00Z",
+        auth_user_id: "user-123",
+        email_address: "user@example.com",
+      },
+      wallets: [
+        {
+          id: "wallet-profile",
+          parent_profile_id: "parent-profile",
+          display_name: "Sky Trail",
+          photo_url: null,
+          cubid_id: "cubid_sky",
+          locked_at: null,
+          created_at: "2025-01-02T00:00:00Z",
+          wallet_address: "0x1234",
+        },
+      ],
+    };
 
     getSessionMock.mockResolvedValueOnce(session);
-    fetchMyProfileMock.mockResolvedValueOnce(profile);
+    fetchMyProfilesMock.mockResolvedValueOnce(bundle);
 
     let authCallback: (nextSession: Session | null) => void = () => undefined;
     onAuthStateChangeMock.mockImplementation((callback: typeof authCallback) => {
@@ -55,17 +79,21 @@ describe("AuthProvider", () => {
     await waitFor(() => {
       expect(useUserStore.getState().session).toBe(session);
     });
-    expect(useUserStore.getState().user).toEqual(profile);
+    expect(useUserStore.getState().parentProfile).toEqual(bundle.parent);
+    expect(useUserStore.getState().walletProfiles).toEqual(bundle.wallets);
+    expect(useUserStore.getState().activeWalletProfileId).toBe(bundle.wallets[0]?.id ?? null);
     expect(useUserStore.getState().initialised).toBe(true);
-    expect(fetchMyProfileMock).toHaveBeenCalledTimes(1);
+    expect(fetchMyProfilesMock).toHaveBeenCalledTimes(1);
 
-    fetchMyProfileMock.mockResolvedValueOnce(null);
+    fetchMyProfilesMock.mockResolvedValueOnce({ parent: null, wallets: [] });
     authCallback(null);
 
     await waitFor(() => {
       expect(useUserStore.getState().session).toBeNull();
     });
-    expect(useUserStore.getState().user).toBeNull();
+    expect(useUserStore.getState().parentProfile).toBeNull();
+    expect(useUserStore.getState().walletProfiles).toEqual([]);
+    expect(useUserStore.getState().activeWalletProfileId).toBeNull();
 
     unmount();
   });
@@ -87,9 +115,10 @@ describe("AuthProvider", () => {
     });
 
     expect(useUserStore.getState().session).toBeNull();
-    expect(useUserStore.getState().user).toBeNull();
+    expect(useUserStore.getState().parentProfile).toBeNull();
+    expect(useUserStore.getState().walletProfiles).toEqual([]);
     expect(useUserStore.getState().initialised).toBe(true);
-    expect(fetchMyProfileMock).not.toHaveBeenCalled();
+    expect(fetchMyProfilesMock).not.toHaveBeenCalled();
 
     errorSpy.mockRestore();
   });

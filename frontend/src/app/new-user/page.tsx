@@ -5,7 +5,7 @@ import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState 
 
 import { isValidCubidId, requestCubidId } from "../../lib/cubid";
 import { useRestrictToIncompleteOnboarding } from "../../lib/onboarding";
-import { upsertMyProfile } from "../../lib/profile";
+import { createWalletProfile, fetchMyProfiles } from "../../lib/profile";
 import { useUserStore } from "../../lib/store";
 import { getSupabaseClient } from "../../lib/supabaseClient";
 import { ensureWallet } from "../../lib/wallet";
@@ -22,15 +22,22 @@ type OnboardingStep = 0 | 1 | 2;
 
 export default function NewUserPage() {
   const router = useRouter();
-  const { session, profile, ready } = useRestrictToIncompleteOnboarding();
-  const setUser = useUserStore((state) => state.setUser);
+  const { session, walletProfiles, ready } = useRestrictToIncompleteOnboarding();
+  const setParentProfile = useUserStore((state) => state.setParentProfile);
+  const setWalletProfiles = useUserStore((state) => state.setWalletProfiles);
+  const setActiveWalletProfile = useUserStore((state) => state.setActiveWalletProfile);
   const setWalletAddress = useUserStore((state) => state.setWalletAddress);
   const walletAddress = useUserStore((state) => state.walletAddress);
 
-  const initialCubidId = useMemo(() => profile?.cubid_id ?? createRandomCubidId(), [profile?.cubid_id]);
+  const existingWalletProfile = walletProfiles[0] ?? null;
+
+  const initialCubidId = useMemo(
+    () => existingWalletProfile?.cubid_id ?? createRandomCubidId(),
+    [existingWalletProfile?.cubid_id],
+  );
   const [form, setForm] = useState({
-    displayName: profile?.display_name ?? "",
-    photoUrl: profile?.photo_url ?? "",
+    displayName: existingWalletProfile?.display_name ?? "",
+    photoUrl: existingWalletProfile?.photo_url ?? "",
     cubidId: initialCubidId,
   });
   const [step, setStep] = useState<OnboardingStep>(0);
@@ -40,14 +47,14 @@ export default function NewUserPage() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoLink, setPhotoLink] = useState("");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(existingWalletProfile?.photo_url ?? null);
   const hasRequestedCubidId = useRef(false);
-  const latestProfileRef = useRef(profile);
+  const latestProfileRef = useRef(existingWalletProfile);
   const previewObjectUrl = useRef<string | null>(null);
 
   useEffect(() => {
-    latestProfileRef.current = profile;
-  }, [profile]);
+    latestProfileRef.current = existingWalletProfile;
+  }, [existingWalletProfile]);
 
   function updatePhotoPreview(value: string | null, isObjectUrl: boolean) {
     if (previewObjectUrl.current) {
@@ -62,14 +69,14 @@ export default function NewUserPage() {
 
   useEffect(() => {
     setForm((prev) => ({
-      displayName: profile?.display_name ?? "",
-      photoUrl: profile?.photo_url ?? "",
-      cubidId: profile?.cubid_id ?? prev.cubidId ?? initialCubidId,
+      displayName: existingWalletProfile?.display_name ?? "",
+      photoUrl: existingWalletProfile?.photo_url ?? "",
+      cubidId: existingWalletProfile?.cubid_id ?? prev.cubidId ?? initialCubidId,
     }));
-    if (profile?.photo_url) {
-      updatePhotoPreview(profile.photo_url, false);
+    if (existingWalletProfile?.photo_url) {
+      updatePhotoPreview(existingWalletProfile.photo_url, false);
     }
-  }, [initialCubidId, profile?.cubid_id, profile?.display_name, profile?.photo_url]);
+  }, [existingWalletProfile?.cubid_id, existingWalletProfile?.display_name, existingWalletProfile?.photo_url, initialCubidId]);
 
   useEffect(() => {
     return () => {
@@ -84,7 +91,7 @@ export default function NewUserPage() {
     if (!ready || !session?.user?.email) {
       return;
     }
-    if (profile?.cubid_id || hasRequestedCubidId.current) {
+    if (existingWalletProfile?.cubid_id || hasRequestedCubidId.current) {
       return;
     }
 
@@ -101,7 +108,7 @@ export default function NewUserPage() {
         const message = err instanceof Error ? err.message : "Failed to generate Cubid ID";
         setError(message);
       });
-  }, [profile?.cubid_id, ready, session?.user?.email]);
+  }, [existingWalletProfile?.cubid_id, ready, session?.user?.email]);
 
   if (!ready) {
     return (
@@ -116,11 +123,44 @@ export default function NewUserPage() {
     setError(null);
     setStatus("Requesting wallet access…");
     try {
+      if (!form.displayName.trim()) {
+        throw new Error("Add your name before connecting a wallet");
+      }
+      if (!form.photoUrl) {
+        throw new Error("Upload or link a photo before connecting a wallet");
+      }
+      if (!isValidCubidId(form.cubidId)) {
+        throw new Error("Cubid ID must match cubid_[a-z0-9]{4,32}");
+      }
       const address = await ensureWallet();
-      const updated = await upsertMyProfile({ evm_address: address });
-      setUser(updated);
+      const lowerAddress = address.toLowerCase();
+      const existing = walletProfiles.find(
+        (profile) => profile.wallet_address && profile.wallet_address.toLowerCase() === lowerAddress,
+      );
+      if (existing) {
+        setWalletAddress(address);
+        setActiveWalletProfile(existing.id);
+        setStatus("Wallet reconnected");
+        return;
+      }
+
+      const bundle = await createWalletProfile({
+        address,
+        displayName: form.displayName,
+        photoUrl: form.photoUrl,
+        cubidId: form.cubidId,
+      });
+      setParentProfile(bundle.parent);
+      setWalletProfiles(bundle.wallets);
+      const newProfile =
+        bundle.wallets.find(
+          (profile) => profile.wallet_address && profile.wallet_address.toLowerCase() === lowerAddress,
+        ) ?? bundle.wallets[bundle.wallets.length - 1] ?? null;
+      if (newProfile) {
+        setActiveWalletProfile(newProfile.id);
+      }
       setWalletAddress(address);
-      setStatus("Wallet linked");
+      setStatus("Wallet profile created");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Wallet connection failed";
       setError(message);
@@ -138,15 +178,16 @@ export default function NewUserPage() {
       setError("Cubid ID must match cubid_[a-z0-9]{4,32}");
       return;
     }
+    if (!walletProfiles.length && !walletAddress) {
+      setError("Connect at least one wallet to finish onboarding");
+      return;
+    }
     setSaving(true);
-    setStatus("Saving profile…");
+    setStatus("Finishing onboarding…");
     try {
-      const updated = await upsertMyProfile({
-        cubid_id: form.cubidId,
-        display_name: form.displayName,
-        photo_url: form.photoUrl,
-      });
-      setUser(updated);
+      const bundle = await fetchMyProfiles();
+      setParentProfile(bundle.parent);
+      setWalletProfiles(bundle.wallets);
       setStatus("Profile saved");
       router.push("/circle");
     } catch (err) {
@@ -257,7 +298,7 @@ export default function NewUserPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Welcome to Trust Me Bro</h1>
         <p className="text-muted-foreground">
-          We'll gather a few details to build your profile: your name, a photo, and your wallet.
+          We&apos;ll gather a few details to build your profile: your name, a photo, and your wallet.
         </p>
       </header>
 
@@ -289,7 +330,7 @@ export default function NewUserPage() {
       {step === 0 ? (
         <form className="space-y-6" onSubmit={handleNameNext}>
           <label className="flex flex-col gap-3">
-            <span className="text-2xl font-medium">What's your name?</span>
+            <span className="text-2xl font-medium">What&apos;s your name?</span>
             <input
               autoFocus
               className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-6 text-2xl shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
@@ -315,7 +356,7 @@ export default function NewUserPage() {
           <div className="space-y-3">
             <p className="text-2xl font-medium">Share a photo</p>
             <p className="text-sm text-muted-foreground">
-              Upload a file or paste a link to an image. We'll store it securely for your profile.
+              Upload a file or paste a link to an image. We&apos;ll store it securely for your profile.
             </p>
             <div className="flex flex-col gap-4 rounded-lg border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
               <label className="flex flex-col gap-2 text-sm font-medium">
@@ -378,7 +419,7 @@ export default function NewUserPage() {
           <div className="space-y-3">
             <p className="text-2xl font-medium">Connect your wallet</p>
             <p className="text-sm text-muted-foreground">
-              Link the wallet you'll use for vouching. Once connected, we'll confirm your Cubid ID.
+              Link the wallet you&apos;ll use for vouching. Once connected, we&apos;ll confirm your Cubid ID.
             </p>
             <div className="rounded-lg border border-neutral-200 p-6 shadow-sm dark:border-neutral-800">
               <button

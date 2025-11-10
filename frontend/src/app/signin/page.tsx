@@ -10,7 +10,7 @@ import { useUserStore } from "../../lib/store";
 export default function SignInPage() {
   const router = useRouter();
   const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const walletProfiles = useUserStore((state) => state.walletProfiles);
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -21,9 +21,9 @@ export default function SignInPage() {
       return;
     }
 
-    const destination = hasCompletedOnboarding(profile) ? "/circle" : "/new-user";
+    const destination = hasCompletedOnboarding(walletProfiles) ? "/circle" : "/new-user";
     router.push(destination);
-  }, [profile, router, session]);
+  }, [router, session, walletProfiles]);
 
   async function handleSendOtp(event: FormEvent) {
     event.preventDefault();

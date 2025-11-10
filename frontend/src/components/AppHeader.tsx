@@ -23,12 +23,24 @@ function getInitials(value: string | null | undefined): string {
 
 export function AppHeader() {
   const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const parentProfile = useUserStore((state) => state.parentProfile);
+  const walletProfiles = useUserStore((state) => state.walletProfiles);
+  const activeWalletProfileId = useUserStore((state) => state.activeWalletProfileId);
 
-  const displayName = profile?.display_name ?? session?.user?.email ?? "Trust Me Bro";
+  const activeWalletProfile = useMemo(() => {
+    if (!walletProfiles.length) {
+      return null;
+    }
+    if (!activeWalletProfileId) {
+      return walletProfiles[0] ?? null;
+    }
+    return walletProfiles.find((profile) => profile.id === activeWalletProfileId) ?? walletProfiles[0] ?? null;
+  }, [activeWalletProfileId, walletProfiles]);
+
+  const displayName = activeWalletProfile?.display_name ?? session?.user?.email ?? parentProfile?.email_address ?? "Trust Me Bro";
   const avatarInitials = useMemo(
-    () => getInitials(profile?.display_name ?? profile?.cubid_id ?? session?.user?.email),
-    [profile?.cubid_id, profile?.display_name, session?.user?.email],
+    () => getInitials(activeWalletProfile?.display_name ?? activeWalletProfile?.cubid_id ?? session?.user?.email),
+    [activeWalletProfile?.cubid_id, activeWalletProfile?.display_name, session?.user?.email],
   );
 
   if (!session) {
@@ -62,9 +74,9 @@ export function AppHeader() {
             <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Signed in</span>
             <span className="text-sm font-medium text-slate-100">{displayName}</span>
           </div>
-          {profile?.photo_url ? (
+          {activeWalletProfile?.photo_url ? (
             <span className="inline-flex h-12 w-12 overflow-hidden rounded-full border border-sky-400/60 shadow-lg shadow-sky-500/20">
-              <img alt={displayName ?? "Profile"} className="h-full w-full object-cover" src={profile.photo_url} />
+              <img alt={displayName ?? "Profile"} className="h-full w-full object-cover" src={activeWalletProfile.photo_url} />
             </span>
           ) : (
             <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-sky-500/40 bg-gradient-to-br from-sky-500/80 via-slate-800 to-indigo-800 text-base font-bold uppercase text-slate-50 shadow-lg shadow-sky-500/20">
