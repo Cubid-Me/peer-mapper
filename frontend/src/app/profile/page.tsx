@@ -1,17 +1,17 @@
 "use client";
  
 
-import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { upsertMyProfile } from "../../../lib/profile";
-import { useUserStore } from "../../../lib/store";
+import { useRequireCompletedOnboarding } from "../../lib/onboarding";
+import { upsertMyProfile } from "../../lib/profile";
+import { useUserStore } from "../../lib/store";
+import { ensureWallet } from "../../lib/wallet";
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const { session, profile, ready } = useRequireCompletedOnboarding();
   const setUser = useUserStore((state) => state.setUser);
+  const setWalletAddress = useUserStore((state) => state.setWalletAddress);
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [photoUrl, setPhotoUrl] = useState(profile?.photo_url ?? "");
@@ -31,11 +31,14 @@ export default function ProfilePage() {
     setImageError(false);
   }, [photoPreviewUrl]);
 
-  useEffect(() => {
-    if (!session) {
-      router.replace("/(routes)/signin");
-    }
-  }, [router, session]);
+  if (!ready || !session || !profile) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Loading your profile…</h1>
+        <p className="text-sm text-muted-foreground">One moment while we confirm your onboarding status.</p>
+      </section>
+    );
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -56,6 +59,22 @@ export default function ProfilePage() {
       setStatus("Profile updated");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update profile";
+      setError(message);
+      setStatus(null);
+    }
+  }
+
+  async function handleConnectWallet() {
+    setError(null);
+    setStatus("Requesting wallet access…");
+    try {
+      const address = await ensureWallet();
+      const updated = await upsertMyProfile({ evm_address: address });
+      setUser(updated);
+      setWalletAddress(address);
+      setStatus("Wallet linked");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Wallet connection failed";
       setError(message);
       setStatus(null);
     }
@@ -102,6 +121,13 @@ export default function ProfilePage() {
           >
             Save changes
           </button>
+          <button
+            className="rounded border border-neutral-400 px-4 py-2 text-sm font-medium transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+            onClick={handleConnectWallet}
+            type="button"
+          >
+            Connect wallet
+          </button>
           {status ? <p className="text-sm text-green-600 dark:text-green-400">{status}</p> : null}
           {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
         </form>
@@ -130,7 +156,6 @@ export default function ProfilePage() {
             )}
             <div className="space-y-1">
               <p className="text-base font-semibold">{previewName}</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 dark:text-neutral-400">Trust Me Bro</p>
               <p className="text-sm text-muted-foreground">Cubid ID: {profile?.cubid_id ?? "Pending from onboarding"}</p>
             </div>
           </div>

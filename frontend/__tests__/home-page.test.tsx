@@ -29,6 +29,9 @@ describe("Home page", () => {
     const ctas = screen.getAllByRole("link", { name: /Start verifying now/i });
     expect(ctas).toHaveLength(2);
     ctas.forEach((cta) => expect(cta).toHaveAttribute("href", "/signin"));
+
+    const indexerLink = screen.getByRole("link", { name: /Visit Moonbeam indexer/i });
+    expect(indexerLink).toHaveAttribute("href", "/indexer");
   });
 
   it("shows quick actions when the user is signed in", () => {
@@ -40,7 +43,9 @@ describe("Home page", () => {
     act(() => {
       useUserStore.setState({
         session,
-        user: { user_id: "1", display_name: "Agent Maple", cubid_id: "maple" },
+        user: { user_id: "1", display_name: "Agent Maple", cubid_id: "maple", evm_address: "0x123" },
+        walletAddress: null,
+        initialised: true,
       });
     });
 
@@ -49,5 +54,6 @@ describe("Home page", () => {
     expect(screen.getByText(/let’s keep building trusted links/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Share your QR/i })).toHaveAttribute("href", "/scan/my-qr");
     expect(screen.getByRole("link", { name: /Open camera/i })).toHaveAttribute("href", "/scan/camera");
+    expect(screen.getByRole("link", { name: /Open Moonbeam indexer/i })).toHaveAttribute("href", "/indexer");
   });
 });

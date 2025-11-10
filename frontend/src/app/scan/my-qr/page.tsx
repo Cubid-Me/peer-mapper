@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import QRDisplay from "@/components/QRDisplay";
 import { subscribeToHandshake } from "@/lib/handshake";
+import { useRequireCompletedOnboarding } from "@/lib/onboarding";
 import { useScanStore } from "@/lib/scanStore";
-import { useUserStore } from "@/lib/store";
 
 function createHandshakeChannel(): string {
   const globalCrypto = globalThis.crypto;
@@ -19,8 +19,7 @@ function createHandshakeChannel(): string {
 
 export default function MyQrPage() {
   const router = useRouter();
-  const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const { session, profile, ready } = useRequireCompletedOnboarding();
   const setResult = useScanStore((state) => state.setResult);
 
   const [timestamp, setTimestamp] = useState(() => Date.now());
@@ -30,6 +29,13 @@ export default function MyQrPage() {
   useEffect(() => {
     setTimestamp(Date.now());
   }, [profile?.cubid_id]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setTimestamp(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setHandshakeMessage(null);
@@ -81,21 +87,13 @@ export default function MyQrPage() {
     };
   }, [handshakeChannel, profile?.cubid_id, router, setResult]);
 
-  if (!session) {
+  if (!ready || !session || !profile) {
     return (
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-8 text-slate-200 shadow-lg shadow-sky-900/30">
         <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-slate-50">Share your QR once you’re signed in</h1>
-          <p className="text-sm text-slate-300/80">
-            Generate a Cubid QR only after authenticating. That way, every handshake originates from a trusted session.
-          </p>
+          <h1 className="text-3xl font-semibold text-slate-50">Preparing your QR…</h1>
+          <p className="text-sm text-slate-300/80">We&apos;re confirming your onboarding status.</p>
         </header>
-        <Link
-          className="inline-flex items-center justify-center rounded-full border border-sky-400/40 bg-sky-500/20 px-5 py-2 text-sm font-semibold uppercase tracking-[0.3em] text-sky-100 shadow-lg shadow-sky-500/20 transition hover:border-sky-300 hover:bg-sky-500/30"
-          href="/signin"
-        >
-          Sign in to continue
-        </Link>
       </section>
     );
   }
@@ -122,7 +120,6 @@ export default function MyQrPage() {
           />
           <div className="space-y-1">
             <p className="text-lg font-semibold text-slate-50">{displayName}</p>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Trust Me Bro</p>
             <p className="text-sm text-slate-300">Cubid ID: {profile?.cubid_id ?? "—"}</p>
           </div>
           {handshakeMessage ? (

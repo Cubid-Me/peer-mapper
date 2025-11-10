@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import CameraPage from "../src/app/(routes)/scan/camera/page";
+import CameraPage from "../src/app/scan/camera/page";
 import { useScanStore } from "../src/lib/scanStore";
 import { useUserStore } from "../src/lib/store";
 
@@ -26,6 +26,7 @@ const {
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
+    replace: vi.fn(),
   }),
 }));
 
@@ -72,8 +73,14 @@ describe("CameraPage", () => {
 
     useUserStore.setState({
       session,
-      user: { user_id: session.user.id, cubid_id: "cubid_me" },
+      user: {
+        user_id: session.user.id,
+        cubid_id: "cubid_me",
+        display_name: "Maple",
+        evm_address: "0xViewer",
+      },
       walletAddress: null,
+      initialised: true,
     });
 
     getUserMediaMock.mockResolvedValue({

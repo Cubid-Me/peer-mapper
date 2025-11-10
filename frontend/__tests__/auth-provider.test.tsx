@@ -56,6 +56,7 @@ describe("AuthProvider", () => {
       expect(useUserStore.getState().session).toBe(session);
     });
     expect(useUserStore.getState().user).toEqual(profile);
+    expect(useUserStore.getState().initialised).toBe(true);
     expect(fetchMyProfileMock).toHaveBeenCalledTimes(1);
 
     fetchMyProfileMock.mockResolvedValueOnce(null);
@@ -87,6 +88,7 @@ describe("AuthProvider", () => {
 
     expect(useUserStore.getState().session).toBeNull();
     expect(useUserStore.getState().user).toBeNull();
+    expect(useUserStore.getState().initialised).toBe(true);
     expect(fetchMyProfileMock).not.toHaveBeenCalled();
 
     errorSpy.mockRestore();

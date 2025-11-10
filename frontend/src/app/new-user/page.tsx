@@ -1,46 +1,54 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { isValidCubidId, requestCubidId } from "../../../lib/cubid";
-import { upsertMyProfile } from "../../../lib/profile";
-import { useUserStore } from "../../../lib/store";
-import { ensureWallet } from "../../../lib/wallet";
+import { isValidCubidId, requestCubidId } from "../../lib/cubid";
+import { useRestrictToIncompleteOnboarding } from "../../lib/onboarding";
+import { upsertMyProfile } from "../../lib/profile";
+import { useUserStore } from "../../lib/store";
+import { ensureWallet } from "../../lib/wallet";
+
+function createRandomCubidId(): string {
+  const globalCrypto = globalThis.crypto;
+  if (globalCrypto && typeof globalCrypto.randomUUID === "function") {
+    return `cubid_${globalCrypto.randomUUID().replace(/-/g, "")}`;
+  }
+  return `cubid_${Math.random().toString(36).slice(2, 34)}`;
+}
 
 export default function NewUserPage() {
   const router = useRouter();
-  const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const { session, profile, ready } = useRestrictToIncompleteOnboarding();
   const setUser = useUserStore((state) => state.setUser);
   const setWalletAddress = useUserStore((state) => state.setWalletAddress);
 
+  const initialCubidId = useMemo(() => profile?.cubid_id ?? createRandomCubidId(), [profile?.cubid_id]);
   const [form, setForm] = useState({
     displayName: profile?.display_name ?? "",
     photoUrl: profile?.photo_url ?? "",
-    cubidId: profile?.cubid_id ?? "",
+    cubidId: initialCubidId,
   });
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!session) {
-      router.replace("/(routes)/signin");
-      return;
-    }
-    if (profile?.cubid_id) {
-      router.replace("/(routes)/profile");
-    }
-  }, [profile?.cubid_id, router, session]);
-
-  useEffect(() => {
-    setForm({
+    setForm((prev) => ({
       displayName: profile?.display_name ?? "",
       photoUrl: profile?.photo_url ?? "",
-      cubidId: profile?.cubid_id ?? "",
-    });
-  }, [profile]);
+      cubidId: profile?.cubid_id ?? prev.cubidId ?? initialCubidId,
+    }));
+  }, [initialCubidId, profile?.cubid_id, profile?.display_name, profile?.photo_url]);
+
+  if (!ready) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Loading your onboarding flow…</h1>
+        <p className="text-sm text-muted-foreground">Hold tight while we confirm your session.</p>
+      </section>
+    );
+  }
 
   async function handleGenerateCubid() {
     if (!session?.user?.email) {
@@ -77,6 +85,9 @@ export default function NewUserPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!ready) {
+      return;
+    }
     setError(null);
     if (!isValidCubidId(form.cubidId)) {
       setError("Cubid ID must match cubid_[a-z0-9]{4,32}");

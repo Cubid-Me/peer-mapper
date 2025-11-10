@@ -15,6 +15,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const setSession = useUserStore((state) => state.setSession);
   const setUser = useUserStore((state) => state.setUser);
   const reset = useUserStore((state) => state.reset);
+  const setInitialised = useUserStore((state) => state.setInitialised);
 
   useEffect(() => {
     let isMounted = true;
@@ -34,6 +35,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } catch (error) {
         console.error("Failed to bootstrap Supabase session", error);
         reset();
+      } finally {
+        if (isMounted) {
+          setInitialised(true);
+        }
       }
     }
 
@@ -52,13 +57,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       } else {
         setUser(null);
       }
+      setInitialised(true);
     });
 
     return () => {
       isMounted = false;
       listener?.subscription.unsubscribe();
     };
-  }, [reset, setSession, setUser]);
+  }, [reset, setInitialised, setSession, setUser]);
 
   return <>{children}</>;
 }

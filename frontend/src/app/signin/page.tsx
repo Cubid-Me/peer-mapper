@@ -3,8 +3,9 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { signInWithOtp } from "../../../lib/auth";
-import { useUserStore } from "../../../lib/store";
+import { signInWithOtp } from "../../lib/auth";
+import { hasCompletedOnboarding } from "../../lib/onboarding";
+import { useUserStore } from "../../lib/store";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -20,8 +21,7 @@ export default function SignInPage() {
       return;
     }
 
-    const missingProfile = !profile?.cubid_id || !profile?.display_name || !profile?.evm_address;
-    const destination = missingProfile ? "/new-user" : "/circle";
+    const destination = hasCompletedOnboarding(profile) ? "/circle" : "/new-user";
     router.push(destination);
   }, [profile, router, session]);
 

@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
 import QRScanner from "@/components/QRScanner";
 import { requestQrChallenge, verifyQrChallenge } from "@/lib/api";
 import { type HandshakeCompletion, notifyHandshakeComplete } from "@/lib/handshake";
+import { useRequireCompletedOnboarding } from "@/lib/onboarding";
 import { useScanStore } from "@/lib/scanStore";
 import { useUserStore } from "@/lib/store";
 import { ensureWallet } from "@/lib/wallet";
@@ -18,8 +19,7 @@ type ParsedQrPayload = {
 
 export default function CameraPage() {
   const router = useRouter();
-  const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const { session, profile, ready } = useRequireCompletedOnboarding();
   const walletAddress = useUserStore((state) => state.walletAddress ?? state.user?.evm_address ?? null);
   const setWalletAddress = useUserStore((state) => state.setWalletAddress);
   const setResult = useScanStore((state) => state.setResult);
@@ -32,12 +32,14 @@ export default function CameraPage() {
   const [targetSignature, setTargetSignature] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const challengeInFlightRef = useRef(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
 
-  function parseQrPayload(): ParsedQrPayload {
-    if (!rawQr.trim()) {
+  function parseQrPayload(raw: string): ParsedQrPayload {
+    if (!raw.trim()) {
       throw new Error("Paste a QR payload first");
     }
-    const payload = JSON.parse(rawQr) as ParsedQrPayload;
+    const payload = JSON.parse(raw) as ParsedQrPayload;
     if (!payload.cubidId) {
       throw new Error("QR payload missing cubidId");
     }
@@ -49,11 +51,12 @@ export default function CameraPage() {
 
   async function handleParse() {
     try {
-      const payload = parseQrPayload();
+      const payload = parseQrPayload(rawQr);
       setParsed(payload);
       setTargetAddress(payload.address ?? "");
       setStatus("QR payload parsed");
       setError(null);
+      setScannerError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Invalid QR payload";
       setError(message);
@@ -62,26 +65,34 @@ export default function CameraPage() {
     }
   }
 
-  async function handleChallenge() {
-    if (!parsed) {
-      setError("Parse a QR payload first");
-      return;
-    }
+  async function issueChallenge(payload: ParsedQrPayload) {
     if (!session?.access_token) {
       setError("Supabase session required");
       return;
     }
+    if (challengeInFlightRef.current) {
+      return;
+    }
+    challengeInFlightRef.current = true;
+    if (!parsed) {
+      setParsed(payload);
+    }
+    setViewerSignature(null);
+    setChallenge(null);
     setStatus("Requesting challenge…");
     setError(null);
     try {
-      const result = await requestQrChallenge(parsed.cubidId, session.access_token);
+      const result = await requestQrChallenge(payload.cubidId, session.access_token);
       setChallenge({ id: result.challengeId, value: result.challenge });
       setStatus("Challenge issued. Share it with your peer to sign.");
+      setScannerError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to request challenge";
       setError(message);
       setStatus(null);
       setChallenge(null);
+    } finally {
+      challengeInFlightRef.current = false;
     }
   }
 
@@ -197,6 +208,34 @@ export default function CameraPage() {
     }
   }
 
+  function handleScanDetected(value: string) {
+    setRawQr(value);
+    try {
+      const payload = parseQrPayload(value);
+      setParsed(payload);
+      setTargetAddress(payload.address ?? "");
+      setTargetSignature("");
+      setStatus("QR code detected. Preparing challenge…");
+      setError(null);
+      setScannerError(null);
+      void issueChallenge(payload);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Invalid QR payload";
+      setParsed(null);
+      setStatus(null);
+      setError(message);
+    }
+  }
+
+  if (!ready || !session || !profile) {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-3xl font-semibold">Preparing your scanner…</h1>
+        <p className="text-sm text-slate-300/80">We're confirming your onboarding details.</p>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-8">
       <header className="space-y-3">
@@ -204,19 +243,20 @@ export default function CameraPage() {
         <h1 className="text-3xl font-semibold text-slate-50">Scan a peer and finish the handshake</h1>
         <p className="max-w-2xl text-sm text-slate-300/90">
           Point your camera at their Cubid QR or paste the JSON payload directly. Once both sides sign the temporary challenge,
-          we’ll surface the overlap from EAS.
+          we'll surface the overlap from EAS.
         </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-4 rounded-3xl border border-slate-700/50 bg-slate-900/60 p-6 shadow-lg shadow-black/40">
-          <QRScanner />
+          <QRScanner onScan={handleScanDetected} onScanError={setScannerError} />
           <p className="text-sm text-slate-300/90">
             Allow camera access so we can scan Cubid QR codes directly. We prioritise the rear camera on mobile to keep codes in focus.
           </p>
           <p className="text-xs text-slate-400">
             If the scan struggles, use the developer tools to paste a payload manually.
           </p>
+          {scannerError ? <p className="text-sm text-rose-300">{scannerError}</p> : null}
         </div>
 
         <details className="rounded-3xl border border-slate-700/60 bg-slate-900/60 p-6 text-slate-200 shadow-lg shadow-black/40">
@@ -251,7 +291,7 @@ export default function CameraPage() {
                     <p className="font-medium text-slate-50">Target Cubid: {parsed.cubidId}</p>
                     <button
                       className="rounded-full border border-slate-600/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-slate-200 transition hover:border-sky-400/60 hover:text-sky-200"
-                      onClick={handleChallenge}
+                      onClick={() => parsed && void issueChallenge(parsed)}
                       type="button"
                     >
                       Issue challenge

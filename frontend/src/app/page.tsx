@@ -58,10 +58,17 @@ const QUICK_ACTIONS = [
     title: "Issue a new attestation",
     description: "Record a fresh connection with trust level, circle tag, and expiry in one flow.",
   },
+  {
+    href: "/indexer",
+    title: "Open Moonbeam indexer",
+    description: "Inspect attestations, transactions, and contract calls without leaving the Trust Me Bro shell.",
+  },
 ];
 
 const ctaClassName =
   "inline-flex items-center justify-center rounded-full border border-sky-400/40 bg-sky-500/20 px-6 py-3 text-sm font-semibold uppercase tracking-[0.3em] text-sky-100 shadow-lg shadow-sky-500/20 transition hover:border-sky-300 hover:bg-sky-500/30";
+const secondaryCtaClassName =
+  "inline-flex items-center justify-center rounded-full border border-slate-500/40 bg-transparent px-6 py-3 text-sm font-semibold uppercase tracking-[0.3em] text-slate-200 shadow-lg shadow-black/30 transition hover:border-sky-300 hover:text-sky-200";
 
 export default function Home() {
   const session = useUserStore((state) => state.session);
@@ -84,10 +91,13 @@ export default function Home() {
             <Link className={ctaClassName} href="/signin">
               Start verifying now
             </Link>
-            <p className="text-sm text-slate-300/80">
-              No passwords. Just a magic link and your trusted network.
-            </p>
+            <Link className={secondaryCtaClassName} href="/indexer">
+              Visit Moonbeam indexer
+            </Link>
           </div>
+          <p className="text-sm text-slate-300/80">
+            No passwords. Just a magic link and your trusted network.
+          </p>
         </section>
 
         <section className="grid gap-6 md:grid-cols-3">

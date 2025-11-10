@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import ProfilePage from "../src/app/(routes)/profile/page";
+import ProfilePage from "../src/app/profile/page";
 import { useUserStore } from "../src/lib/store";
 
 const { replaceMock } = vi.hoisted(() => ({
@@ -36,7 +36,10 @@ describe("ProfilePage", () => {
           cubid_id: "cubid_me",
           display_name: "Maple Leaf",
           photo_url: "https://example.com/photo.png",
+          evm_address: "0x123",
         },
+        walletAddress: null,
+        initialised: true,
       });
     });
   });
@@ -52,6 +55,7 @@ describe("ProfilePage", () => {
 
     expect(screen.getByText(/This name can be a nickname/i)).toBeInTheDocument();
     expect(screen.getByText(/Maple Leaf/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /connect wallet/i })).toBeInTheDocument();
 
     const previewHeading = screen.getByRole("heading", { name: /Preview for peers/i });
     const previewAside = previewHeading.closest("aside");
