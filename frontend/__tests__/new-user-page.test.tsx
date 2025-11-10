@@ -26,6 +26,8 @@ const {
   revokeObjectURLMock: vi.fn(),
 }));
 let originalFetch: typeof globalThis.fetch;
+let originalCreateObjectURL: typeof URL.createObjectURL | undefined;
+let originalRevokeObjectURL: typeof URL.revokeObjectURL | undefined;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -91,6 +93,8 @@ describe("NewUserPage", () => {
     createObjectURLMock.mockReturnValue("blob:preview");
     revokeObjectURLMock.mockReset();
     const globalUrl = globalThis.URL as unknown as Record<string, unknown>;
+    originalCreateObjectURL = globalUrl.createObjectURL as typeof URL.createObjectURL | undefined;
+    originalRevokeObjectURL = globalUrl.revokeObjectURL as typeof URL.revokeObjectURL | undefined;
     globalUrl.createObjectURL = createObjectURLMock;
     globalUrl.revokeObjectURL = revokeObjectURLMock;
 
@@ -102,8 +106,16 @@ describe("NewUserPage", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     const globalUrl = globalThis.URL as unknown as Record<string, unknown>;
-    globalUrl.createObjectURL = createObjectURLMock;
-    globalUrl.revokeObjectURL = revokeObjectURLMock;
+    if (originalCreateObjectURL) {
+      globalUrl.createObjectURL = originalCreateObjectURL;
+    } else {
+      delete globalUrl.createObjectURL;
+    }
+    if (originalRevokeObjectURL) {
+      globalUrl.revokeObjectURL = originalRevokeObjectURL;
+    } else {
+      delete globalUrl.revokeObjectURL;
+    }
     upsertMyProfileMock.mockReset();
     requestCubidIdMock.mockReset();
     ensureWalletMock.mockReset();

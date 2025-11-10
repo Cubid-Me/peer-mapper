@@ -42,7 +42,12 @@ export default function NewUserPage() {
   const [photoLink, setPhotoLink] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(profile?.photo_url ?? null);
   const hasRequestedCubidId = useRef(false);
+  const latestProfileRef = useRef(profile);
   const previewObjectUrl = useRef<string | null>(null);
+
+  useEffect(() => {
+    latestProfileRef.current = profile;
+  }, [profile]);
 
   function updatePhotoPreview(value: string | null, isObjectUrl: boolean) {
     if (previewObjectUrl.current) {
@@ -76,7 +81,7 @@ export default function NewUserPage() {
   }, []);
 
   useEffect(() => {
-    if (!session?.user?.email) {
+    if (!ready || !session?.user?.email) {
       return;
     }
     if (profile?.cubid_id || hasRequestedCubidId.current) {
@@ -86,6 +91,9 @@ export default function NewUserPage() {
     hasRequestedCubidId.current = true;
     requestCubidId(session.user.email)
       .then((cubid) => {
+        if (latestProfileRef.current?.cubid_id) {
+          return;
+        }
         setForm((prev) => ({ ...prev, cubidId: cubid }));
         setStatus("Cubid ID prepared");
       })
@@ -93,7 +101,7 @@ export default function NewUserPage() {
         const message = err instanceof Error ? err.message : "Failed to generate Cubid ID";
         setError(message);
       });
-  }, [profile?.cubid_id, session?.user?.email]);
+  }, [profile?.cubid_id, ready, session?.user?.email]);
 
   if (!ready) {
     return (
@@ -113,7 +121,6 @@ export default function NewUserPage() {
       setUser(updated);
       setWalletAddress(address);
       setStatus("Wallet linked");
-      setStep(2);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Wallet connection failed";
       setError(message);
@@ -184,13 +191,12 @@ export default function NewUserPage() {
     } else if (photoLink) {
       const response = await fetch(photoLink);
       if (!response.ok) {
-        throw new Error("We couldn&apos;t fetch that image link");
+        throw new Error("We couldn't fetch that image link");
       }
       const contentType = response.headers.get("content-type") ?? "image/jpeg";
       const extension = inferExtensionFromSource(photoLink, contentType);
       const blob = await response.blob();
       fileToUpload = new File([blob], `linked.${extension}`, { type: contentType });
-      updatePhotoPreview(URL.createObjectURL(blob), true);
     } else if (form.photoUrl) {
       // Existing profile photo already stored in Supabase.
       setStatus("Photo ready");
@@ -218,6 +224,7 @@ export default function NewUserPage() {
     } = supabase.storage.from("profile-pictures").getPublicUrl(storagePath);
 
     setForm((prev) => ({ ...prev, photoUrl: publicUrl }));
+    updatePhotoPreview(publicUrl, false);
     setStatus("Photo uploaded");
   }
 
@@ -233,7 +240,7 @@ export default function NewUserPage() {
       await uploadPhotoFromLinkOrFile();
       setStep(2);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "We couldn&apos;t save your photo";
+      const message = err instanceof Error ? err.message : "We couldn't save your photo";
       setError(message);
       setStatus(null);
     } finally {
@@ -250,22 +257,39 @@ export default function NewUserPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Welcome to Trust Me Bro</h1>
         <p className="text-muted-foreground">
-          We&apos;ll gather a few details to build your profile: your name, a photo, and your wallet.
+          We'll gather a few details to build your profile: your name, a photo, and your wallet.
         </p>
       </header>
 
-      <div className="flex gap-2 text-xs uppercase tracking-widest text-muted-foreground">
-        <span className={step === 0 ? "font-semibold text-blue-600" : ""}>Name</span>
-        <span>›</span>
-        <span className={step === 1 ? "font-semibold text-blue-600" : step > 1 ? "text-blue-600" : ""}>Photo</span>
-        <span>›</span>
-        <span className={step === 2 ? "font-semibold text-blue-600" : ""}>Wallet</span>
-      </div>
+      <nav aria-label="Onboarding progress">
+        <ol className="flex items-center gap-2 text-xs uppercase tracking-widest text-muted-foreground">
+          {(["Name", "Photo", "Wallet"] as const).map((label, index, array) => (
+            <li
+              key={label}
+              aria-current={step === index ? "step" : undefined}
+              className={`flex items-center ${
+                step === index
+                  ? "font-semibold text-blue-600"
+                  : index < step
+                    ? "text-blue-600"
+                    : ""
+              }`}
+            >
+              <span>{label}</span>
+              {index < array.length - 1 ? (
+                <span aria-hidden="true" className="px-1 text-muted-foreground">
+                  ›
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       {step === 0 ? (
         <form className="space-y-6" onSubmit={handleNameNext}>
           <label className="flex flex-col gap-3">
-            <span className="text-2xl font-medium">What&apos;s your name?</span>
+            <span className="text-2xl font-medium">What's your name?</span>
             <input
               autoFocus
               className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-6 text-2xl shadow-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
@@ -291,7 +315,7 @@ export default function NewUserPage() {
           <div className="space-y-3">
             <p className="text-2xl font-medium">Share a photo</p>
             <p className="text-sm text-muted-foreground">
-              Upload a file or paste a link to an image. We&apos;ll store it securely for your profile.
+              Upload a file or paste a link to an image. We'll store it securely for your profile.
             </p>
             <div className="flex flex-col gap-4 rounded-lg border border-dashed border-neutral-300 p-6 dark:border-neutral-700">
               <label className="flex flex-col gap-2 text-sm font-medium">
@@ -331,6 +355,7 @@ export default function NewUserPage() {
               className="rounded-full border border-neutral-300 px-8 py-3 text-lg font-semibold transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
               onClick={() => {
                 setStatus(null);
+                setError(null);
                 setStep(0);
               }}
               type="button"
@@ -353,7 +378,7 @@ export default function NewUserPage() {
           <div className="space-y-3">
             <p className="text-2xl font-medium">Connect your wallet</p>
             <p className="text-sm text-muted-foreground">
-              Link the wallet you&apos;ll use for vouching. Once connected, we&apos;ll confirm your Cubid ID.
+              Link the wallet you'll use for vouching. Once connected, we'll confirm your Cubid ID.
             </p>
             <div className="rounded-lg border border-neutral-200 p-6 shadow-sm dark:border-neutral-800">
               <button
@@ -392,6 +417,7 @@ export default function NewUserPage() {
               className="rounded-full border border-neutral-300 px-8 py-3 text-lg font-semibold transition hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
               onClick={() => {
                 setStatus(null);
+                setError(null);
                 setStep(1);
               }}
               type="button"
@@ -420,7 +446,7 @@ function inferExtensionFromSource(source: string, contentType: string): string {
   if (urlExtension && /^[a-z0-9]+$/i.test(urlExtension)) {
     return urlExtension;
   }
-  const mimeExtension = contentType.split("/")[1];
+  const mimeExtension = contentType.split("/")[1]?.split(";")[0]?.trim();
   if (mimeExtension) {
     return mimeExtension;
   }
