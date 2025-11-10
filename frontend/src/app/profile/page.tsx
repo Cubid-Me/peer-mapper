@@ -3,10 +3,10 @@
 
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { useRequireCompletedOnboarding } from "../../../lib/onboarding";
-import { upsertMyProfile } from "../../../lib/profile";
-import { useUserStore } from "../../../lib/store";
-import { ensureWallet } from "../../../lib/wallet";
+import { useRequireCompletedOnboarding } from "../../lib/onboarding";
+import { upsertMyProfile } from "../../lib/profile";
+import { useUserStore } from "../../lib/store";
+import { ensureWallet } from "../../lib/wallet";
 
 export default function ProfilePage() {
   const { session, profile, ready } = useRequireCompletedOnboarding();

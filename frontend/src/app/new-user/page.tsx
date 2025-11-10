@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import { isValidCubidId, requestCubidId } from "../../../lib/cubid";
-import { useRestrictToIncompleteOnboarding } from "../../../lib/onboarding";
-import { upsertMyProfile } from "../../../lib/profile";
-import { useUserStore } from "../../../lib/store";
-import { ensureWallet } from "../../../lib/wallet";
+import { isValidCubidId, requestCubidId } from "../../lib/cubid";
+import { useRestrictToIncompleteOnboarding } from "../../lib/onboarding";
+import { upsertMyProfile } from "../../lib/profile";
+import { useUserStore } from "../../lib/store";
+import { ensureWallet } from "../../lib/wallet";
 
 function createRandomCubidId(): string {
   const globalCrypto = globalThis.crypto;

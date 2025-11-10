@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
-import { signInWithOtp } from "../../../lib/auth";
-import { hasCompletedOnboarding } from "../../../lib/onboarding";
-import { useUserStore } from "../../../lib/store";
+import { signInWithOtp } from "../../lib/auth";
+import { hasCompletedOnboarding } from "../../lib/onboarding";
+import { useUserStore } from "../../lib/store";
 
 export default function SignInPage() {
   const router = useRouter();
