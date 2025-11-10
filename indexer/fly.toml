@@ -1,0 +1,39 @@
+# fly.toml app configuration file
+# See https://fly.io/docs/reference/configuration/ for more info
+
+app = 'peer-mapper-indexer'
+primary_region = 'yyz'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  NODE_ENV = 'production'
+  PORT = '8080'
+  MOONBEAM_RPC = 'https://rpc.api.moonbeam.network'
+  REGISTRY_ADDR = '0xD680d4F3852A527BedbF12fB261F6922dfD98e28'
+  EAS_ADDR = '0xd3cC2cfEb2904b465b0743460e38FeD0C1Ed1c75'
+  SCHEMA_UID = '0x1b219d056f55ec3a19488c61f9d6afac696ab273cd615bfeaed122253bf1ad55'
+  FEEGATE_ADDR = '0x1b79e8a759f06720E5a45105D29a707E51c44918'
+  RATE_LIMIT_RPS = '2'
+  RATE_LIMIT_DAILY = '100'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1

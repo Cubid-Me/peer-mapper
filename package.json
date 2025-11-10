@@ -14,7 +14,7 @@
     "env:sync": "node scripts/env-sync.ts",
     "spec:lint": "echo \"spec lint placeholder\"",
     "coverage": "bash scripts/forge-coverage.sh",
-    "prepare": "husky install"
+    "prepare": "[ \"$HUSKY\" = \"0\" ] || husky install"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": "eslint --fix",

@@ -7,17 +7,17 @@
       "deployments": {
         "current": {
           "version": "v1",
-          "timestamp": "",
-          "SchemaRegistry": "",
-          "EAS": "",
+          "timestamp": 1762705656,
+          "SchemaRegistry": "0xD680d4F3852A527BedbF12fB261F6922dfD98e28",
+          "EAS": "0xd3cC2cfEb2904b465b0743460e38FeD0C1Ed1c75",
           "schemas": {
             "CubidTrust": {
-              "uid": "",
-              "resolver": "",
+              "uid": "0x1b219d056f55ec3a19488c61f9d6afac696ab273cd615bfeaed122253bf1ad55",
+              "resolver": "0x1b79e8a759f06720E5a45105D29a707E51c44918",
               "revocable": true
             }
           },
-          "FeeGate": ""
+          "FeeGate": "0x1b79e8a759f06720E5a45105D29a707E51c44918"
         },
         "history": []
       }
