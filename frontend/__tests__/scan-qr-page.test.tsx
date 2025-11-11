@@ -42,17 +42,37 @@ describe("MyQrPage", () => {
       useScanStore.getState().reset();
     });
 
-    const session = { access_token: "token", user: { id: "user-1" } } as unknown as Session;
-    useUserStore.setState({
-      session,
-      user: {
-        user_id: "user-1",
-        cubid_id: "cubid_me",
-        display_name: "Casey Rivers",
-        evm_address: "0x123",
-      },
-      walletAddress: null,
-      initialised: true,
+    const session = { access_token: "token", user: { id: "user-1", email: "user@example.com" } } as unknown as Session;
+    act(() => {
+      useUserStore.setState({
+        session,
+        parentProfile: {
+          id: "parent",
+          parent_profile_id: null,
+          display_name: null,
+          photo_url: null,
+          cubid_id: null,
+          locked_at: null,
+          created_at: "2025-01-01T00:00:00Z",
+          auth_user_id: "user-1",
+          email_address: "user@example.com",
+        },
+        walletProfiles: [
+          {
+            id: "wallet-1",
+            parent_profile_id: "parent",
+            display_name: "Casey Rivers",
+            photo_url: "https://example.com/avatar.png",
+            cubid_id: "cubid_me",
+            locked_at: null,
+            created_at: "2025-01-02T00:00:00Z",
+            wallet_address: "0x123",
+          },
+        ],
+        activeWalletProfileId: "wallet-1",
+        walletAddress: null,
+        initialised: true,
+      });
     });
   });
 

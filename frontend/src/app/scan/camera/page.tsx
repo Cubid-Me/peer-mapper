@@ -19,8 +19,9 @@ type ParsedQrPayload = {
 
 export default function CameraPage() {
   const router = useRouter();
-  const { session, profile, ready } = useRequireCompletedOnboarding();
-  const walletAddress = useUserStore((state) => state.walletAddress ?? state.user?.evm_address ?? null);
+  const { session, activeWalletProfile, ready } = useRequireCompletedOnboarding();
+  const storedWalletAddress = useUserStore((state) => state.walletAddress);
+  const walletAddress = storedWalletAddress ?? activeWalletProfile?.wallet_address ?? null;
   const setWalletAddress = useUserStore((state) => state.setWalletAddress);
   const setResult = useScanStore((state) => state.setResult);
 
@@ -139,7 +140,7 @@ export default function CameraPage() {
       setError("Supabase session required");
       return;
     }
-    if (!profile?.cubid_id) {
+    if (!activeWalletProfile?.cubid_id) {
       setError("Viewer Cubid ID missing");
       return;
     }
@@ -166,7 +167,7 @@ export default function CameraPage() {
         {
           challengeId: challenge.id,
           challenge: challenge.value,
-          viewer: { cubidId: profile.cubid_id, address: viewerAddr, signature: viewerSignature },
+          viewer: { cubidId: activeWalletProfile.cubid_id, address: viewerAddr, signature: viewerSignature },
           target: { cubidId: parsed.cubidId, address: targetAddress, signature: targetSignature },
         },
         session.access_token,
@@ -175,7 +176,7 @@ export default function CameraPage() {
       const completion: HandshakeCompletion = {
         channel: parsed.channel,
         targetCubid: parsed.cubidId,
-        viewerCubid: profile.cubid_id,
+        viewerCubid: activeWalletProfile.cubid_id,
         challengeId: result.challengeId,
         expiresAt: result.expiresAt,
         overlaps: result.overlaps,
@@ -227,11 +228,11 @@ export default function CameraPage() {
     }
   }
 
-  if (!ready || !session || !profile) {
+  if (!ready || !session || !activeWalletProfile) {
     return (
       <section className="space-y-4">
         <h1 className="text-3xl font-semibold">Preparing your scanner…</h1>
-        <p className="text-sm text-slate-300/80">We're confirming your onboarding details.</p>
+        <p className="text-sm text-slate-300/80">We&apos;re confirming your onboarding details.</p>
       </section>
     );
   }
@@ -243,7 +244,7 @@ export default function CameraPage() {
         <h1 className="text-3xl font-semibold text-slate-50">Scan a peer and finish the handshake</h1>
         <p className="max-w-2xl text-sm text-slate-300/90">
           Point your camera at their Cubid QR or paste the JSON payload directly. Once both sides sign the temporary challenge,
-          we'll surface the overlap from EAS.
+          we&apos;ll surface the overlap from EAS.
         </p>
       </header>
 

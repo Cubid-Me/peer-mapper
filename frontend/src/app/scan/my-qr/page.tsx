@@ -19,7 +19,7 @@ function createHandshakeChannel(): string {
 
 export default function MyQrPage() {
   const router = useRouter();
-  const { session, profile, ready } = useRequireCompletedOnboarding();
+  const { session, activeWalletProfile, ready } = useRequireCompletedOnboarding();
   const setResult = useScanStore((state) => state.setResult);
 
   const [timestamp, setTimestamp] = useState(() => Date.now());
@@ -28,7 +28,7 @@ export default function MyQrPage() {
 
   useEffect(() => {
     setTimestamp(Date.now());
-  }, [profile?.cubid_id]);
+  }, [activeWalletProfile?.cubid_id]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -43,12 +43,12 @@ export default function MyQrPage() {
   }, [timestamp]);
 
   const payload = useMemo(
-    () => ({ cubidId: profile?.cubid_id ?? "", ts: timestamp, channel: handshakeChannel }),
-    [profile?.cubid_id, timestamp, handshakeChannel],
+    () => ({ cubidId: activeWalletProfile?.cubid_id ?? "", ts: timestamp, channel: handshakeChannel }),
+    [activeWalletProfile?.cubid_id, timestamp, handshakeChannel],
   );
 
   useEffect(() => {
-    if (!profile?.cubid_id) {
+    if (!activeWalletProfile?.cubid_id) {
       return undefined;
     }
 
@@ -61,7 +61,7 @@ export default function MyQrPage() {
           if (!active) {
             return;
           }
-          if (payload.targetCubid !== profile.cubid_id) {
+          if (payload.targetCubid !== activeWalletProfile.cubid_id) {
             return;
           }
           setResult({
@@ -85,9 +85,9 @@ export default function MyQrPage() {
       active = false;
       unsubscribe?.();
     };
-  }, [handshakeChannel, profile?.cubid_id, router, setResult]);
+  }, [activeWalletProfile?.cubid_id, handshakeChannel, router, setResult]);
 
-  if (!ready || !session || !profile) {
+  if (!ready || !session || !activeWalletProfile) {
     return (
       <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-8 text-slate-200 shadow-lg shadow-sky-900/30">
         <header className="space-y-2">
@@ -98,7 +98,7 @@ export default function MyQrPage() {
     );
   }
 
-  const displayName = profile?.display_name?.trim() || "Your chosen name";
+  const displayName = activeWalletProfile?.display_name?.trim() || "Your chosen name";
 
   return (
     <section className="space-y-8">
@@ -120,7 +120,7 @@ export default function MyQrPage() {
           />
           <div className="space-y-1">
             <p className="text-lg font-semibold text-slate-50">{displayName}</p>
-            <p className="text-sm text-slate-300">Cubid ID: {profile?.cubid_id ?? "—"}</p>
+            <p className="text-sm text-slate-300">Cubid ID: {activeWalletProfile?.cubid_id ?? "—"}</p>
           </div>
           {handshakeMessage ? (
             <p className="rounded-full border border-emerald-400/60 bg-emerald-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100">

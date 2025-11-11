@@ -71,16 +71,36 @@ describe("CameraPage", () => {
       user: { id: "user-1", email: "user@example.com" },
     } as unknown as Session;
 
-    useUserStore.setState({
-      session,
-      user: {
-        user_id: session.user.id,
-        cubid_id: "cubid_me",
-        display_name: "Maple",
-        evm_address: "0xViewer",
-      },
-      walletAddress: null,
-      initialised: true,
+    act(() => {
+      useUserStore.setState({
+        session,
+        parentProfile: {
+          id: "parent",
+          parent_profile_id: null,
+          display_name: null,
+          photo_url: null,
+          cubid_id: null,
+          locked_at: null,
+          created_at: "2025-01-01T00:00:00Z",
+          auth_user_id: session.user.id,
+          email_address: session.user.email ?? null,
+        },
+        walletProfiles: [
+          {
+            id: "wallet-1",
+            parent_profile_id: "parent",
+            display_name: "Maple",
+            photo_url: "https://example.com/avatar.png",
+            cubid_id: "cubid_me",
+            locked_at: null,
+            created_at: "2025-01-02T00:00:00Z",
+            wallet_address: "0xViewer",
+          },
+        ],
+        activeWalletProfileId: "wallet-1",
+        walletAddress: null,
+        initialised: true,
+      });
     });
 
     getUserMediaMock.mockResolvedValue({

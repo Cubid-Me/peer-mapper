@@ -10,7 +10,7 @@ This playbook captures the end-to-end steps for publishing the peer-mapper stack
    - `SUPABASE_*` keys from the production project
    - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`
    - `FLY_API_TOKEN` (or Render token if using Render)
-3. Confirm Supabase has the production tables (`public.users`) and RLS policies applied.
+3. Confirm Supabase has the production identity tables (`public.profiles`, `public.profile_credentials`, `public.profiles_cubid`) plus the helper RPC and RLS policies applied.
 4. Update `addresses.json` with the last-known deployment artefacts after each broadcast.
 5. Run the full quality gate locally:
    ```bash

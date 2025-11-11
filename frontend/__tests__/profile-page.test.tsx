@@ -6,6 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../src/app/profile/page";
 import { useUserStore } from "../src/lib/store";
 
+const { requestCubidIdMock } = vi.hoisted(() => ({
+  requestCubidIdMock: vi.fn(() => new Promise<string>(() => {})),
+}));
+
+vi.mock("../src/lib/cubid", async () => {
+  const actual = await vi.importActual<typeof import("../src/lib/cubid")>("../src/lib/cubid");
+  return {
+    ...actual,
+    requestCubidId: requestCubidIdMock,
+  };
+});
+
 const { replaceMock } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
 }));
@@ -19,6 +31,7 @@ vi.mock("next/navigation", () => ({
 describe("ProfilePage", () => {
   beforeEach(() => {
     replaceMock.mockReset();
+    requestCubidIdMock.mockClear();
     act(() => {
       useUserStore.getState().reset();
     });
@@ -31,13 +44,30 @@ describe("ProfilePage", () => {
     act(() => {
       useUserStore.setState({
         session,
-        user: {
-          user_id: session.user.id,
-          cubid_id: "cubid_me",
-          display_name: "Maple Leaf",
-          photo_url: "https://example.com/photo.png",
-          evm_address: "0x123",
+        parentProfile: {
+          id: "parent",
+          parent_profile_id: null,
+          display_name: null,
+          photo_url: null,
+          cubid_id: null,
+          locked_at: null,
+          created_at: "2025-01-01T00:00:00Z",
+          auth_user_id: session.user.id,
+          email_address: session.user.email ?? null,
         },
+        walletProfiles: [
+          {
+            id: "wallet-1",
+            parent_profile_id: "parent",
+            display_name: "Maple Leaf",
+            photo_url: "https://example.com/photo.png",
+            cubid_id: "cubid_me",
+            locked_at: null,
+            created_at: "2025-01-02T00:00:00Z",
+            wallet_address: "0x123",
+          },
+        ],
+        activeWalletProfileId: "wallet-1",
         walletAddress: null,
         initialised: true,
       });
@@ -50,37 +80,51 @@ describe("ProfilePage", () => {
     });
   });
 
-  it("shows an on-page preview of the profile", () => {
-    render(<ProfilePage />);
+  it("shows linked wallet profiles and account summary", async () => {
+    await act(async () => {
+      render(<ProfilePage />);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-    expect(screen.getByText(/This name can be a nickname/i)).toBeInTheDocument();
-    expect(screen.getByText(/Maple Leaf/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /connect wallet/i })).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-    const previewHeading = screen.getByRole("heading", { name: /Preview for peers/i });
-    const previewAside = previewHeading.closest("aside");
-    expect(previewAside).not.toBeNull();
-    if (previewAside) {
-      expect(within(previewAside).getByText(/Cubid ID: cubid_me/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Wallet profiles/i })).toBeInTheDocument();
+    expect(screen.getByText(/Linked wallets/i)).toBeInTheDocument();
+
+    const walletCard = screen.getByText("Maple Leaf").closest("li");
+    expect(walletCard).not.toBeNull();
+    if (walletCard) {
+      expect(within(walletCard).getByText(/Cubid ID: cubid_me/i)).toBeInTheDocument();
+      expect(within(walletCard).getByText(/Active/i)).toBeInTheDocument();
     }
 
-    const previewImage = screen.getByAltText(/Profile photo preview/i) as HTMLImageElement;
-    expect(previewImage.src).toContain("https://example.com/photo.png");
+    expect(screen.getByText(/Signed in as/i)).toBeInTheDocument();
+    expect(screen.getByText(/user@example.com/)).toBeInTheDocument();
   });
 
   it("surfaces a warning when the photo URL cannot load", async () => {
     const user = userEvent.setup();
 
-    render(<ProfilePage />);
+    await act(async () => {
+      render(<ProfilePage />);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
     const photoInput = screen.getByLabelText(/Photo URL/i);
     await user.clear(photoInput);
     await user.type(photoInput, "https://example.com/broken.png");
 
-    const previewImage = screen.getByAltText(/Profile photo preview/i);
-    fireEvent.error(previewImage);
+    const previewImage = screen.getByAltText(/Wallet preview/i);
+    act(() => {
+      fireEvent.error(previewImage);
+    });
 
-    expect(screen.getByText(/We couldn’t load this image/i)).toBeInTheDocument();
-    expect(screen.getByText("!")).toBeInTheDocument();
+    expect(screen.getByText(/Image error/i)).toBeInTheDocument();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 });

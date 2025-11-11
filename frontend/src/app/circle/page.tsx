@@ -15,8 +15,9 @@ function formatFreshness(seconds: number): string {
 }
 
 export default function CirclePage() {
-  const { profile, ready } = useRequireCompletedOnboarding();
-  const walletAddress = useUserStore((state) => state.walletAddress ?? state.user?.evm_address ?? null);
+  const { activeWalletProfile, ready } = useRequireCompletedOnboarding();
+  const connectedWalletAddress = useUserStore((state) => state.walletAddress);
+  const walletAddress = connectedWalletAddress ?? activeWalletProfile?.wallet_address ?? null;
 
   const [data, setData] = useState<ProfileResponse | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -27,8 +28,8 @@ export default function CirclePage() {
       setData(null);
       return;
     }
-    const cubidId = profile?.cubid_id ?? null;
-    const issuer = walletAddress ?? profile?.evm_address ?? null;
+    const cubidId = activeWalletProfile?.cubid_id ?? null;
+    const issuer = walletAddress ?? null;
     if (!cubidId) {
       setData(null);
       setStatus(null);
@@ -64,7 +65,7 @@ export default function CirclePage() {
     return () => {
       cancelled = true;
     };
-  }, [profile?.cubid_id, profile?.evm_address, ready, walletAddress]);
+  }, [activeWalletProfile?.cubid_id, ready, walletAddress]);
 
   const groupedByCircle = useMemo(() => {
     if (!data) {
@@ -129,7 +130,7 @@ export default function CirclePage() {
             <div className="space-y-1">
               <h2 className="text-xl font-semibold">Outbound ({data.outbound.length})</h2>
               <p className="text-sm text-muted-foreground">
-                Credentials you&apos;ve issued as {walletAddress ?? profile?.evm_address} grouped by circle.
+                Credentials you&apos;ve issued as {walletAddress ?? "your active wallet"} grouped by circle.
               </p>
             </div>
             {groupedByCircle.length === 0 ? (

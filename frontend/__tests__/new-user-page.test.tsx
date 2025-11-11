@@ -10,7 +10,8 @@ const {
   pushMock,
   requestCubidIdMock,
   ensureWalletMock,
-  upsertMyProfileMock,
+  createWalletProfileMock,
+  fetchMyProfilesMock,
   uploadMock,
   getPublicUrlMock,
   createObjectURLMock,
@@ -19,7 +20,8 @@ const {
   pushMock: vi.fn(),
   requestCubidIdMock: vi.fn<[], Promise<string>>(),
   ensureWalletMock: vi.fn<[], Promise<string>>(),
-  upsertMyProfileMock: vi.fn(),
+  createWalletProfileMock: vi.fn(),
+  fetchMyProfilesMock: vi.fn(),
   uploadMock: vi.fn(),
   getPublicUrlMock: vi.fn(),
   createObjectURLMock: vi.fn(() => "blob:preview"),
@@ -49,12 +51,14 @@ vi.mock("../src/lib/onboarding", () => ({
     session: {
       user: { id: "user-1", email: "user@example.com" },
     } as unknown as Session,
-    profile: { user_id: "user-1" },
+    walletProfiles: useUserStore.getState().walletProfiles,
+    parentProfile: useUserStore.getState().parentProfile,
   }),
 }));
 
 vi.mock("../src/lib/profile", () => ({
-  upsertMyProfile: (...args: unknown[]) => upsertMyProfileMock(...args),
+  createWalletProfile: (...args: unknown[]) => createWalletProfileMock(...args),
+  fetchMyProfiles: (...args: unknown[]) => fetchMyProfilesMock(...args),
 }));
 
 vi.mock("../src/lib/wallet", () => ({
@@ -77,10 +81,56 @@ describe("NewUserPage", () => {
     pushMock.mockReset();
     requestCubidIdMock.mockResolvedValue("cubid_testabcd");
     ensureWalletMock.mockResolvedValue("0xwallet");
-    upsertMyProfileMock.mockImplementation(async (payload) => ({
-      user_id: "user-1",
-      ...payload,
-    }));
+    createWalletProfileMock.mockResolvedValue({
+      parent: {
+        id: "parent",
+        parent_profile_id: null,
+        display_name: null,
+        photo_url: null,
+        cubid_id: null,
+        locked_at: null,
+        created_at: "2025-01-01T00:00:00Z",
+        auth_user_id: "user-1",
+        email_address: "user@example.com",
+      },
+      wallets: [
+        {
+          id: "wallet-1",
+          parent_profile_id: "parent",
+          display_name: "Maple Leaf",
+          photo_url: "https://supabase.test/avatar.png",
+          cubid_id: "cubid_testabcd",
+          locked_at: null,
+          created_at: "2025-01-02T00:00:00Z",
+          wallet_address: "0xwallet",
+        },
+      ],
+    });
+    fetchMyProfilesMock.mockResolvedValue({
+      parent: {
+        id: "parent",
+        parent_profile_id: null,
+        display_name: null,
+        photo_url: null,
+        cubid_id: null,
+        locked_at: null,
+        created_at: "2025-01-01T00:00:00Z",
+        auth_user_id: "user-1",
+        email_address: "user@example.com",
+      },
+      wallets: [
+        {
+          id: "wallet-1",
+          parent_profile_id: "parent",
+          display_name: "Maple Leaf",
+          photo_url: "https://supabase.test/avatar.png",
+          cubid_id: "cubid_testabcd",
+          locked_at: null,
+          created_at: "2025-01-02T00:00:00Z",
+          wallet_address: "0xwallet",
+        },
+      ],
+    });
     uploadMock.mockResolvedValue({ error: null });
     getPublicUrlMock.mockImplementation((path: string) => ({
       data: { publicUrl: `https://supabase.test/${path}` },
@@ -116,7 +166,8 @@ describe("NewUserPage", () => {
     } else {
       delete globalUrl.revokeObjectURL;
     }
-    upsertMyProfileMock.mockReset();
+    createWalletProfileMock.mockReset();
+    fetchMyProfilesMock.mockReset();
     requestCubidIdMock.mockReset();
     ensureWalletMock.mockReset();
     uploadMock.mockReset();
@@ -155,20 +206,21 @@ describe("NewUserPage", () => {
     await user.click(screen.getByRole("button", { name: /connect wallet/i }));
 
     await waitFor(() => expect(ensureWalletMock).toHaveBeenCalled());
-    await waitFor(() => expect(upsertMyProfileMock).toHaveBeenCalledWith({ evm_address: "0xwallet" }));
+    await waitFor(() =>
+      expect(createWalletProfileMock).toHaveBeenCalledWith({
+        address: "0xwallet",
+        displayName: "Maple Leaf",
+        photoUrl: expect.stringContaining("https://supabase.test/"),
+        cubidId: "cubid_testabcd",
+      }),
+    );
 
     const cubidInput = await screen.findByDisplayValue("cubid_testabcd");
     expect(cubidInput).toHaveAttribute("readonly");
 
     await user.click(screen.getByRole("button", { name: /finish/i }));
 
-    await waitFor(() =>
-      expect(upsertMyProfileMock).toHaveBeenCalledWith({
-        cubid_id: "cubid_testabcd",
-        display_name: "Maple Leaf",
-        photo_url: expect.stringContaining("https://supabase.test/"),
-      }),
-    );
+    await waitFor(() => expect(fetchMyProfilesMock).toHaveBeenCalled());
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/circle"));
   });
 });

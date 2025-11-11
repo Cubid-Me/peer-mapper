@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo } from "react";
 
 import { useUserStore } from "../lib/store";
 
@@ -72,7 +73,18 @@ const secondaryCtaClassName =
 
 export default function Home() {
   const session = useUserStore((state) => state.session);
-  const profile = useUserStore((state) => state.user);
+  const walletProfiles = useUserStore((state) => state.walletProfiles);
+  const activeWalletProfileId = useUserStore((state) => state.activeWalletProfileId);
+
+  const activeWalletProfile = useMemo(() => {
+    if (!walletProfiles.length) {
+      return null;
+    }
+    if (!activeWalletProfileId) {
+      return walletProfiles[0] ?? null;
+    }
+    return walletProfiles.find((profile) => profile.id === activeWalletProfileId) ?? walletProfiles[0] ?? null;
+  }, [activeWalletProfileId, walletProfiles]);
 
   if (!session) {
     return (
@@ -137,7 +149,8 @@ export default function Home() {
       <section className="rounded-3xl border border-sky-500/30 bg-slate-950/70 p-10 shadow-lg shadow-sky-900/40">
         <span className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-400/80">Welcome back</span>
         <h1 className="mt-3 text-4xl font-bold text-slate-50">
-          {profile?.display_name ?? profile?.cubid_id ?? session.user?.email ?? "Peer"}, let’s keep building trusted links
+          {activeWalletProfile?.display_name ?? activeWalletProfile?.cubid_id ?? session.user?.email ?? "Peer"}, let’s keep
+          building trusted links
         </h1>
         <p className="mt-4 max-w-3xl text-base text-slate-300/90">
           Your Supabase session stays warm so you can bounce between flows without friction. Dive straight into a QR handshake or update your circle whenever you need.

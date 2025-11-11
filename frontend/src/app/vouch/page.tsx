@@ -10,7 +10,7 @@ import { useUserStore } from "@/lib/store";
 import { ensureWallet } from "@/lib/wallet";
 
 export default function VouchPage() {
-  const { ready } = useRequireCompletedOnboarding();
+  const { activeWalletProfile, ready } = useRequireCompletedOnboarding();
   const [cubid, setCubid] = useState("");
   const [recipient, setRecipient] = useState("");
   const [trustLevel, setTrustLevel] = useState(3);
@@ -23,7 +23,8 @@ export default function VouchPage() {
   const [relayResult, setRelayResult] = useState<Awaited<ReturnType<typeof relayAttestation>> | null>(null);
 
   const setWalletAddress = useUserStore((state) => state.setWalletAddress);
-  const walletAddress = useUserStore((state) => state.walletAddress ?? state.user?.evm_address ?? null);
+  const storedWalletAddress = useUserStore((state) => state.walletAddress);
+  const walletAddress = storedWalletAddress ?? activeWalletProfile?.wallet_address ?? null;
 
   const valid = isValidCubidId(cubid);
   const payload = useMemo(() => ({ cubidId: cubid || "cubid_demo", ts: Date.now() }), [cubid]);

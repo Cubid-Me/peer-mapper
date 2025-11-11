@@ -18,8 +18,9 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 ### 2.1 Authentication & Identity
 
 - As a **user**, I can request a Supabase **magic link** (email) to establish an authenticated session without leaving the app.
-- As a **user**, once signed in I can populate my profile in `public.users` with a **Cubid ID**, **display name**, and optional **photo URL** that other features rely on.
-- As a **user**, I can optionally connect an **EVM wallet (Nova Wallet)** to fund or sign attestations, and the linked address is stored with my Supabase profile.
+- As a **user**, once signed in the system materialises an email-rooted parent profile in Supabase (`public.profiles`) keyed to my `auth_user_id`.
+- As a **user**, I can link one or more wallets; each link collects my display name and photo, requests a Cubid ID, and calls `create_profile_with_credential` so Supabase mints an immutable wallet persona beneath my parent profile.
+- As a **user**, I can review every wallet persona from the dashboard, with Cubid ID and avatar locked once the profile completes its first handshake.
 
 ### 2.2 Creating Attestations (Vouching)
 
@@ -83,12 +84,13 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
    - Surfaces inline success/error states ("Check your inbox…", "Failed to send magic link").
 
 2. **Onboarding (`/(routes)/new-user`)**
-   - Guides the user through display name + photo capture, Cubid ID generation (`requestCubidId`), and Nova/EVM wallet linking (`ensureWallet`).
-   - Writes updates via `upsertMyProfile`, showing status banners for generation, wallet linking, and profile persistence.
+   - Guides the user through display name + photo capture, pre-generates a Cubid ID (`requestCubidId`), and requests wallet access through `ensureWallet`.
+   - Calls `createWalletProfile` after wallet approval so Supabase can mint the child profile, store the wallet credential, append the Cubid history, and hydrate the store with the resulting bundle.
+   - Surfaces status banners for Cubid generation, wallet linking, duplicate-address detection, and Supabase persistence before redirecting to the circle view.
 
 3. **Profile (`/(routes)/profile`)**
-   - Displays read-only Cubid ID + wallet, allows editing display name/photo, and persists changes with `upsertMyProfile`.
-   - Redirects back to sign-in when no Supabase session is present.
+   - Shows the parent email summary alongside a read-only grid of wallet personas (name, avatar, Cubid ID, wallet address) with a form to link additional wallets via the same `createWalletProfile` helper.
+   - Disables edits after a profile is locked, provides a refresh button to re-fetch Supabase state, and redirects back to sign-in when no session is present.
 
 4. **My Circle (`/(routes)/circle`)**
    - Fetches inbound/outbound attestations through `getProfile(cubidId, { issuer })`, formats freshness (seconds → minutes/hours/days), and lets users query arbitrary Cubid IDs.
@@ -130,15 +132,15 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 
 ## 5. External Interactions
 
-| Component                              | Purpose                                | Interaction                                                                                                                   |
-| -------------------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Supabase Auth**                      | Session management & profile storage   | Next.js uses `@supabase/supabase-js` for magic link auth and profile CRUD; indexer verifies JWTs using `SUPABASE_JWT_SECRET`. |
-| **Cubid SDK**                          | Authentication & issuance of Cubid IDs | App still invokes Cubid flows post-login to obtain Cubid IDs for attestations.                                                |
-| **EAS (Ethereum Attestation Service)** | On-chain attestation registry          | FeeGate relays attestations to EAS contracts.                                                                                 |
-| **FeeGate Resolver**                   | Validation & spam control              | Enforces per-issuer nonce and fee threshold.                                                                                  |
-| **Moonbeam RPC**                       | Blockchain backend                     | Transactions and event subscriptions.                                                                                         |
-| **Indexer (Node.js)**                  | Off-chain aggregator                   | Subscribes to EAS events; exposes REST API.                                                                                   |
-| **Frontend (Next.js)**                 | User interface                         | Fetches and posts to indexer API.                                                                                             |
+| Component                              | Purpose                                | Interaction                                                                                                                                                                           |
+| -------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Supabase Auth**                      | Session management & profile storage   | Next.js uses `@supabase/supabase-js` for magic link auth, the `create_profile_with_credential` RPC, and `profiles_enriched` reads; indexer verifies JWTs using `SUPABASE_JWT_SECRET`. |
+| **Cubid SDK**                          | Authentication & issuance of Cubid IDs | App still invokes Cubid flows post-login to obtain Cubid IDs for attestations.                                                                                                        |
+| **EAS (Ethereum Attestation Service)** | On-chain attestation registry          | FeeGate relays attestations to EAS contracts.                                                                                                                                         |
+| **FeeGate Resolver**                   | Validation & spam control              | Enforces per-issuer nonce and fee threshold.                                                                                                                                          |
+| **Moonbeam RPC**                       | Blockchain backend                     | Transactions and event subscriptions.                                                                                                                                                 |
+| **Indexer (Node.js)**                  | Off-chain aggregator                   | Subscribes to EAS events; exposes REST API.                                                                                                                                           |
+| **Frontend (Next.js)**                 | User interface                         | Fetches and posts to indexer API.                                                                                                                                                     |
 
 ---
 
@@ -189,7 +191,7 @@ The MVP focuses on human-to-human verification and displaying mutual trusted con
 ## 10. Deliverables Summary
 
 - Working web app on Vercel (Next.js)
-- Supabase project linked with `public.users` migration and environment wiring
+- Supabase project linked with the multi-profile Supabase schema (`public.profiles`, `public.profile_credentials`, `public.profiles_cubid`) and environment wiring
 - Smart contracts (EAS fork + FeeGate) deployed on Moonbeam
 - Indexer API running publicly
 - Supabase magic-link authentication bridged with Cubid ID assignment
