@@ -2,7 +2,7 @@
 
 Below is a lean, end-to-end blueprint designed to build and ship in 1–2 days during a hackathon. It covers contracts, events, a tiny relayer/indexer, REST APIs, data schemas, and the minimal UI flow required to demo QR-based mutual-friend reveal using **Cubid app-scoped IDs** and **Moonbeam (EVM)**.
 
-Peer-mapper is a lightweight nextjs app which allows people to establish trusted relationships, and view common friends who also trust each other. The aim in the hackathon is to build a crisp, demo-ready MVP flow with on-chain attestations, a relayed signature path, QR in-person handshake, and mutual-friend reveal—with privacy preserved via Cubid app-scoped IDs. Application sessions are backed by Supabase Auth so both the frontend and indexer can trust a shared, RLS-protected `public.users` profile table for minimal metadata (display name, photo, Cubid ID, wallet).
+Peer-mapper is a lightweight nextjs app which allows people to establish trusted relationships, and view common friends who also trust each other. The aim in the hackathon is to build a crisp, demo-ready MVP flow with on-chain attestations, a relayed signature path, QR in-person handshake, and mutual-friend reveal—with privacy preserved via Cubid app-scoped IDs. Application sessions are backed by Supabase Auth so both the frontend and indexer can trust an RLS-protected identity graph composed of `public.profiles`, `public.profile_credentials`, and `public.profiles_cubid`, delivering an email-rooted parent profile with wallet-scoped children plus Cubid history.
 
 The implementation relies on **first deploying EAS** (Ethereum Attestation Service) and then building the app around it.
 
@@ -118,7 +118,7 @@ FeeGate exposes helper views (`domainSeparator()` + `hashAttestation(...)`) so t
 - **Attestations are directional.**
 - **Revocation:** set `trustLevel = NoOpinion` (or explicit EAS revoke) to neutralize a prior vouch.
 - **Persona privacy:** Users may create multiple Cubid-IDs (personas). Untraceability is achieved by not reusing the same Cubid-ID across contexts.
-- **Supabase session store:** Supabase Auth issues sessions. The `public.users` table mirrors Supabase `auth.users.id` in `user_id`, and stores optional `cubid_id`, `display_name`, `photo_url`, and `evm_address`. A trigger keeps `updated_at` current, and RLS policies (`users_self_select`, `users_self_upsert`, `users_self_update`) restrict profile access to the authenticated user while the service role retains full control for trusted backend jobs.
+- **Supabase session store:** Supabase Auth issues sessions. Email login materialises a parent row in `public.profiles` (with `auth_user_id` set and `parent_profile_id` null). Every wallet link invokes `create_profile_with_credential(kind := 'wallet', value := address, auth_user := auth.uid())`, minting a child profile, persisting the wallet credential in `public.profile_credentials`, and leaving metadata editable until the profile is locked. Cubid assignments append to `public.profiles_cubid` (a temporal history managed with `valid_from`/`valid_to`), and the `profiles_enriched` view joins the graph for read access. RLS scopes parents to `auth.uid()` and children to their owning parent while the service role retains full access for backend jobs.
 
 ---
 
@@ -183,7 +183,7 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 - **App Router** under `frontend/src/app` with shared layout + global styles.
 - **Zustand stores**
-  - `useUserStore` persists Supabase session, profile row, and the currently connected wallet.
+  - `useUserStore` persists the Supabase session, parent profile (email), wallet profile collection, and the active wallet selection.
   - `useScanStore` caches the latest QR verification payload so `/results` can render after navigation.
 - **Shared UI** lives in `frontend/src/components/` (`Badge`, `QRDisplay`, `QRScanner`, `UserSessionSummary`).
 - **API facade** in `frontend/src/lib/api.ts` wraps indexer endpoints (`/profile`, `/attest/prepare`, `/attest/relay`, `/qr/*`).
@@ -191,23 +191,23 @@ Revoked events delete cached rows by UID, keeping the view consistent with chain
 
 ### Route map & behaviour
 
-| Route                | Purpose & implementation notes                                                                                                                                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                  | Landing page (`app/page.tsx`) links to each flow in order.                                                                                                                                                                              |
-| `/(routes)/signin`   | Magic-link entry (`signin/page.tsx`). Sends OTP via `signInWithOtp`, watches `useUserStore.session` and redirects to onboarding or circle.                                                                                              |
-| `/(routes)/new-user` | Profile onboarding (`new-user/page.tsx`). Generates Cubid ID via `requestCubidId`, links wallets through `ensureWallet`, and upserts Supabase profile data.                                                                             |
-| `/(routes)/profile`  | Profile maintenance (`profile/page.tsx`). Reads from `useUserStore`, lets users edit display name/photo, persists with `upsertMyProfile`.                                                                                               |
-| `/(routes)/circle`   | Trust graph view (`circle/page.tsx`). Fetches inbound/outbound attestations via `getProfile`, formats freshness, and supports Cubid search.                                                                                             |
-| `/(routes)/vouch`    | Delegated attestation flow (`vouch/page.tsx`). Validates inputs, calls `prepareAttestation`, signs typed data through `window.ethereum`, and relays via `/attest/relay`, surfacing lifetime-fee metadata.                               |
-| `/(routes)/scan`     | QR handshake orchestrator (`scan/page.tsx`). Displays my QR payload (`QRDisplay`), parses peer payload, requests `/qr/challenge`, collects wallet signatures, and posts to `/qr/verify`. Stores the overlap response in `useScanStore`. |
-| `/(routes)/results`  | Overlap renderer (`results/page.tsx`). Reads from `useScanStore`, shows badge cards for each shared issuer, and falls back to a helpful prompt when no data exists.                                                                     |
+| Route                | Purpose & implementation notes                                                                                                                                                                                                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                  | Landing page (`app/page.tsx`) links to each flow in order.                                                                                                                                                                                                            |
+| `/(routes)/signin`   | Magic-link entry (`signin/page.tsx`). Sends OTP via `signInWithOtp`, watches `useUserStore.session` and redirects to onboarding or circle.                                                                                                                            |
+| `/(routes)/new-user` | Profile onboarding (`new-user/page.tsx`). Captures display name/photo, fetches a Cubid ID via `requestCubidId`, requests wallet access with `ensureWallet`, and calls `createWalletProfile` so the Supabase RPC can spawn the first wallet persona plus Cubid record. |
+| `/(routes)/profile`  | Profile maintenance (`profile/page.tsx`). Shows the email-rooted parent profile, lists wallet personas from `useUserStore`, links additional wallets through `createWalletProfile`, and keeps metadata read-only once a profile is locked.                            |
+| `/(routes)/circle`   | Trust graph view (`circle/page.tsx`). Fetches inbound/outbound attestations via `getProfile`, formats freshness, and supports Cubid search.                                                                                                                           |
+| `/(routes)/vouch`    | Delegated attestation flow (`vouch/page.tsx`). Validates inputs, calls `prepareAttestation`, signs typed data through `window.ethereum`, and relays via `/attest/relay`, surfacing lifetime-fee metadata.                                                             |
+| `/(routes)/scan`     | QR handshake orchestrator (`scan/page.tsx`). Displays my QR payload (`QRDisplay`), parses peer payload, requests `/qr/challenge`, collects wallet signatures, and posts to `/qr/verify`. Stores the overlap response in `useScanStore`.                               |
+| `/(routes)/results`  | Overlap renderer (`results/page.tsx`). Reads from `useScanStore`, shows badge cards for each shared issuer, and falls back to a helpful prompt when no data exists.                                                                                                   |
 
 ### Auth, Cubid & wallet integration
 
-- `AuthProvider` boots Supabase session state and hydrates the profile before any route renders.
-- Cubid flow is mocked via `requestCubidId(email)` but stored alongside Supabase user metadata so the indexer has a consistent `cubid_id`.
-- `ensureWallet()` normalises Nova/EVM connection requests, storing the selected address in `useUserStore` so successive flows reuse it.
-- Pages guard against missing session/profile data by redirecting to sign-in when required.
+- `AuthProvider` boots Supabase session state and hydrates the parent + wallet bundle via `fetchMyProfiles` before any route renders.
+- `requestCubidId(seed)` primes a Cubid ID for each wallet addition; `createWalletProfile` passes it to the Supabase RPC, which persists the child profile, wallet credential, and Cubid history in one go.
+- `ensureWallet()` normalises Nova/EVM connection requests, dedupes already-linked addresses, and stores the active wallet selection in `useUserStore` for reuse.
+- Navigation guards rely on `hasCompletedOnboarding` to ensure at least one wallet persona exists before unlocking the rest of the app.
 
 ### QR security guardrails
 

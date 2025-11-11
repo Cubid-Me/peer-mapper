@@ -1,5 +1,9 @@
 # session-log.md
 
+session: v13
+
+- 2025-11-10 — Session 10 (multi-profile identity refresh): Adopted the Supabase `public.profiles` + `profile_credentials` schema with wallet-scoped children and Cubid history, refreshed the frontend store/pages to manage parent plus wallet personas, regenerated vitest fixtures, and synced the technical + functional specs with the new onboarding and profile flows.
+
 session: v12
 
 - 2025-11-09 — Session 09 (deployment & CI/CD readiness): Generated the workspace lockfile, replaced the placeholder CI with a full lint/build/test pipeline (Node 22 + pnpm + Foundry), authored a deployment playbook, enriched the technical and functional specs with release guidance, extended the EAS addresses ledger for Moonscan links, and logged the session artefacts.
