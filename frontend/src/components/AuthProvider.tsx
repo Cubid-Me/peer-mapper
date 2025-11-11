@@ -15,6 +15,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const setSession = useUserStore((state) => state.setSession);
   const setParentProfile = useUserStore((state) => state.setParentProfile);
   const setWalletProfiles = useUserStore((state) => state.setWalletProfiles);
+  const setWalletAddress = useUserStore((state) => state.setWalletAddress);
   const reset = useUserStore((state) => state.reset);
   const setInitialised = useUserStore((state) => state.setInitialised);
 
@@ -25,15 +26,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const session = await getSession();
         if (!isMounted) return;
-        setSession(session);
         if (session) {
           const bundle = await fetchMyProfiles();
           if (!isMounted) return;
+          setSession(session);
           setParentProfile(bundle.parent);
           setWalletProfiles(bundle.wallets);
         } else {
+          setSession(null);
           setParentProfile(null);
           setWalletProfiles([]);
+          setWalletAddress(null);
         }
       } catch (error) {
         console.error("Failed to bootstrap Supabase session", error);
@@ -48,20 +51,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     bootstrap();
 
     const { data: listener } = onAuthStateChange(async (session) => {
-      setSession(session);
       if (session) {
         try {
           const bundle = await fetchMyProfiles();
+          setSession(session);
           setParentProfile(bundle.parent);
           setWalletProfiles(bundle.wallets);
         } catch (error) {
           console.error("Failed to fetch Supabase profiles", error);
-          setParentProfile(null);
-          setWalletProfiles([]);
+          reset();
+          setInitialised(true);
+          return;
         }
       } else {
+        setSession(null);
         setParentProfile(null);
         setWalletProfiles([]);
+        setWalletAddress(null);
       }
       setInitialised(true);
     });
@@ -70,7 +76,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       isMounted = false;
       listener?.subscription.unsubscribe();
     };
-  }, [reset, setInitialised, setParentProfile, setSession, setWalletProfiles]);
+  }, [reset, setInitialised, setParentProfile, setSession, setWalletAddress, setWalletProfiles]);
 
   return <>{children}</>;
 }

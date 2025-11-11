@@ -146,7 +146,7 @@ export async function createWalletProfile(input: CreateWalletProfileInput): Prom
   }
 
   const createdRow = Array.isArray(created) ? created[0] : created;
-  const profileId: string | undefined = createdRow?.id ?? createdRow?.profile_id;
+  const profileId: string | undefined = createdRow?.id;
 
   if (!profileId) {
     throw new Error("create_profile_with_credential did not return a profile id");

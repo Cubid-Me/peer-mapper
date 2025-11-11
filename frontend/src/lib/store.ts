@@ -51,7 +51,7 @@ export const useUserStore = create<UserState>((set) => ({
   setParentProfile: (profile) =>
     set((state) => ({
       parentProfile: profile,
-      // Preserve active wallet when clearing parent profile
+      // Clear the active wallet when the parent profile is removed
       activeWalletProfileId: profile ? state.activeWalletProfileId : null,
     })),
   setWalletProfiles: (profiles) =>

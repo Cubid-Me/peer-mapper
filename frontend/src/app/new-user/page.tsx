@@ -178,7 +178,7 @@ export default function NewUserPage() {
       setError("Cubid ID must match cubid_[a-z0-9]{4,32}");
       return;
     }
-    if (!walletProfiles.length && !walletAddress) {
+    if (!walletProfiles.length) {
       setError("Connect at least one wallet to finish onboarding");
       return;
     }

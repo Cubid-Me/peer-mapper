@@ -51,8 +51,8 @@ vi.mock("../src/lib/onboarding", () => ({
     session: {
       user: { id: "user-1", email: "user@example.com" },
     } as unknown as Session,
-    walletProfiles: [],
-    parentProfile: null,
+    walletProfiles: useUserStore.getState().walletProfiles,
+    parentProfile: useUserStore.getState().parentProfile,
   }),
 }));
 
